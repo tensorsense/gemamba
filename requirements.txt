@@ -1,23 +1,25 @@
 torch
+torchvision
 transformers
 peft
-ipywidgets
+deepspeed
+flash-attn
+xformers
 bitsandbytes==0.42.0
-pillow
 sentencepiece==0.2.0
-protobuf==5.26.0
+tensorboardX
+
 python-dotenv
+ipywidgets
+pillow
+protobuf==5.26.0
 
 # video processing
-torchvision
 pytorchvideo
+decord
 av
 imageio
 opencv-python
 
 # languagebind
 einops
-
-deepspeed
-flash-attn
-tensorboardX

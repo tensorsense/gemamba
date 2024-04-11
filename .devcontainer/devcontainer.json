@@ -1,0 +1,30 @@
+{
+	"name": "gemamba",
+	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
+	"image": "nvcr.io/nvidia/pytorch:24.03-py3",
+
+	// Use 'postCreateCommand' to run commands after the container is created.
+	"postCreateCommand": "bash .devcontainer/postCreateCommand.sh",
+
+	// Configure tool-specific properties.
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-python.python",
+				"ms-python.vscode-pylance",
+				"ms-python.black-formatter",
+				"ms-toolsai.jupyter",
+				"ms-toolsai.jupyter-renderers"
+			]
+		}
+	},
+
+	"mounts": [
+		"source=/data,target=/data,type=bind,consistency=cached"
+	],
+
+	"runArgs": [
+		"--gpus",
+		"all"
+	]
+}

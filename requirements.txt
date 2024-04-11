@@ -1,0 +1,23 @@
+torch
+transformers
+peft
+ipywidgets
+bitsandbytes==0.42.0
+pillow
+sentencepiece==0.2.0
+protobuf==5.26.0
+python-dotenv
+
+# video processing
+torchvision
+pytorchvideo
+av
+imageio
+opencv-python
+
+# languagebind
+einops
+
+deepspeed
+flash-attn
+tensorboardX

@@ -4,22 +4,23 @@ transformers
 peft
 deepspeed
 flash-attn
-xformers
-bitsandbytes==0.42.0
-sentencepiece==0.2.0
+xformers!=0.0.13
+apex==0.1
+bitsandbytes
+sentencepiece
 tensorboardX
 
 python-dotenv
 ipywidgets
 pillow
-protobuf==5.26.0
+protobuf
 
 # video processing
-pytorchvideo
+# pytorchvideo
 decord
 av
 imageio
-opencv-python
+opencv-python==4.8.0.74
 
 # languagebind
 einops

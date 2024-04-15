@@ -2,10 +2,10 @@ import torch
 import torch.nn as nn
 
 from transformers import CLIPVisionModel, CLIPImageProcessor, CLIPVisionConfig
-from hf_parts.processing_videomamba import VideoMambaVideoProcessor
-from models.umt_videomamba import UMT_VIDEOMAMBA
-from models.backbones.bert.tokenization_bert import BertTokenizer
-from utils.easydict import EasyDict
+from .hf_parts.processing_videomamba import VideoMambaVideoProcessor
+from .models.umt_videomamba import UMT_VIDEOMAMBA
+from .models.backbones.bert.tokenization_bert import BertTokenizer
+from .utils.easydict import EasyDict
 
 num_frames = 8
 img_size = 224

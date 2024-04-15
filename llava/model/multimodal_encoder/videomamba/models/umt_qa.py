@@ -4,7 +4,7 @@ import torch
 import torch.nn.functional as F
 from einops import rearrange
 
-from models.utils import tile
+from ..models.utils import tile
 
 from .backbones.vit import build_vit
 from .backbones.bert.builder import build_bert_decoder

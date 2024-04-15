@@ -5,6 +5,110 @@ from transformers import CLIPVisionModel, CLIPImageProcessor, CLIPVisionConfig
 from hf_parts.processing_videomamba import VideoMambaVideoProcessor
 from models.umt_videomamba import UMT_VIDEOMAMBA
 from models.backbones.bert.tokenization_bert import BertTokenizer
+from utils.easydict import EasyDict
+
+num_frames = 8
+img_size = 224
+batch_size = 64
+max_txt_l = 32
+
+model_pth = "videomamba_m16_k400_mask_ft_f8_res224.pth"
+
+config_dict = {
+    "num_frames": num_frames,
+    "num_frames_test": num_frames,
+    "batch_size": batch_size,
+    "max_txt_l": max_txt_l,
+    "inputs": {
+        "image_res": img_size,
+        "video_input": {
+            "num_frames": num_frames,
+            "sample_type": "rand",
+            "num_frames_test": num_frames,
+            "sample_type_test": "middle",
+            "random_aug": False,
+        },
+        "max_txt_l": {"image": max_txt_l, "video": max_txt_l},
+        "batch_size": {"image": batch_size, "video": batch_size},
+        "batch_size_test": {"image": batch_size, "video": batch_size},
+    },
+    "text_enc": "bert",
+    "model": {
+        "model_cls": UMT_VIDEOMAMBA,
+        "vision_encoder": {
+            "name": "videomamba_middle",
+            "img_size": img_size,
+            "patch_size": 16,
+            "depth": 32,
+            "embed_dim": 576,
+            "drop_path_rate": 0.25,
+            "ssm_cfg": None,
+            "norm_epsilon": 1e-5,
+            "fused_add_norm": True,
+            "rms_norm": True,
+            "residual_in_fp32": True,
+            "bimamba": True,
+            "pool_type": "cls+avg",
+            "kernel_size": 1,
+            "num_frames": num_frames,
+            "ckpt_num_frame": 8,
+            "use_checkpoint": False,
+            "checkpoint_num": 0,
+            "clip_decoder_embed_dim": 576,
+            "clip_output_dim": 512,
+            "clip_norm_type": "l2",
+            "clip_return_layer": 1,
+            "clip_student_return_interval": 1,
+            "pretrained": model_pth,
+            "clip_teacher": "none",
+            "clip_img_size": img_size,
+            "clip_return_interval": 1,
+            "video_mask_type": "none",
+            "video_mask_ratio": 0.0,
+            "video_double_mask_ratio": 0.0,
+            "image_mask_type": "none",
+            "image_mask_ratio": 0.0,
+            "image_double_mask_ratio": 0.0,
+            "keep_temporal": True,
+        },
+        "text_encoder": {
+            "name": "bert_base",
+            "pretrained": "bert-base-uncased",
+            "config": "configs/config_bert.json",
+            "d_model": 768,
+            "fusion_layer": 9,
+        },
+        "multimodal": {"enable": True},
+        "embed_dim": 512,
+        "temp": 0.07,
+    },
+    
+    "evaluate": False,
+    "deep_fusion": False,
+    "evaluation": {
+        "eval_frame_ensemble": "concat",
+        "eval_x_only": False,
+        "k_test": 128,
+        "eval_offload": False,
+    },
+    "fp16": True,
+    "bf16": True,
+    "gradient_checkpointing": True,
+    "device": "cuda",
+    "mode": "pt",
+    "output_dir": None,
+    "resume": False,
+    "debug": False,
+    "log_freq": 1,
+    "seed": 42,
+    "zero_shot": True,
+    "save_latest": False,
+    "auto_resume": False,
+    "pretrained_path": model_pth,
+    "distributed": False,
+}
+
+DEFAULT_VIDEOMAMBA_CONFIG = EasyDict(config_dict)
 
 
 class VideoMambaVisionTower(nn.Module):
@@ -12,6 +116,8 @@ class VideoMambaVisionTower(nn.Module):
         super().__init__()
 
         self.is_loaded = False
+
+        self.config = DEFAULT_VIDEOMAMBA_CONFIG
 
         self.vision_tower_name = vision_tower
         self.select_layer = args.mm_vision_select_layer
@@ -33,30 +139,30 @@ class VideoMambaVisionTower(nn.Module):
             )
             return
 
-        # self.image_processor = CLIPImageProcessor.from_pretrained(
-        #     self.vision_tower_name
-        # )
-
-        tokenizer = BertTokenizer.from_pretrained(config.model.text_encoder.pretrained)
+        tokenizer = BertTokenizer.from_pretrained(self.config.model.text_encoder.pretrained)
 
         self.video_processor = VideoMambaVideoProcessor.from_pretrained(
             self.vision_tower_name
         )
 
-        model = UMT_VIDEOMAMBA(config=config, tokenizer=tokenizer, is_pretrain=pretrain)
-        model = model.to(torch.device(config.device))
+        model = UMT_VIDEOMAMBA(config=self.config, tokenizer=tokenizer, is_pretrain=False)
+        model = model.to(torch.device(self.config.device))
 
-        if config.fp16:
-            if config.get("bf16", True):
-                logger.info("Change to bfloat16 for model")
+        if self.config.fp16:
+            if self.config.get("bf16", True):
                 model = model.to(torch.bfloat16)
             else:
-                logger.info("Change to float16 for model")
                 model = model.half()
 
-        # self.vision_tower = CLIPVisionModel.from_pretrained(
-        #     self.vision_tower_name, device_map=device_map
-        # )
+
+        checkpoint = torch.load(self.config.pretrained_path, map_location="cpu")
+        if 'model' in checkpoint.keys():
+            state_dict = checkpoint["model"]
+        else:
+            state_dict = checkpoint
+
+        msg = model.load_state_dict(state_dict, strict=False)
+        print(msg)
 
         self.vision_tower = model
         self.vision_tower.requires_grad_(False)

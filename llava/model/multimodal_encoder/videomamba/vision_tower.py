@@ -78,7 +78,7 @@ class VideoMambaVisionTower(nn.Module):
         return video_features  # return all
 
     @torch.no_grad()
-    def forward(self, images):
+    def forward(self, videos):
         # if type(images) is list:
         #     image_features = []
         #     for image in images:

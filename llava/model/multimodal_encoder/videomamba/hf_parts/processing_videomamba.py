@@ -8,46 +8,28 @@ import random
 
 decord.bridge.set_bridge("torch")
 
-mean = (0.48145466, 0.4578275, 0.40821073)
-std = (0.26862954, 0.26130258, 0.27577711)
-
-normalize = transforms.Normalize(mean, std)
-
-# loaded images and videos are torch.Tensor of torch.uint8 format,
-# ordered as (T, 1 or 3, H, W) where T=1 for image
-type_transform = transforms.Lambda(lambda x: x.float().div(255.0))
-
-transform = transforms.Compose(
-    [
-        transforms.Resize(
-            (config.inputs.image_res, config.inputs.image_res),
-            interpolation=transforms.InterpolationMode.BICUBIC,
-        ),
-        type_transform,
-        normalize,
-    ]
-)
-
-video_reader = read_frames_decord
-
-max_num_frames = -1
-frames, frame_indices, video_duration = video_reader(
-    "/data/vlm_sandbox/videos/lie1.mp4",
-    config.inputs.video_input.num_frames,
-    config.inputs.video_input.sample_type,
-    max_num_frames=max_num_frames,
-    client=None,
-    trimmed30=False,
-)
-
-frames = transform(frames).unsqueeze(0)
-frames.shape
+OPENAI_CLIP_MEAN = (0.48145466, 0.4578275, 0.40821073)
+OPENAI_CLIP_STD = (0.26862954, 0.26130258, 0.27577711)
 
 
-def make_list_of_images(x):
-    if not isinstance(x, list):
-        return [x]
-    return x
+def get_video_transform(config):
+    normalize = transforms.Normalize(OPENAI_CLIP_MEAN, OPENAI_CLIP_STD)
+
+    # loaded images and videos are torch.Tensor of torch.uint8 format,
+    # ordered as (T, 1 or 3, H, W) where T=1 for image
+    type_transform = transforms.Lambda(lambda x: x.float().div(255.0))
+
+    transform = transforms.Compose(
+        [
+            transforms.Resize(
+                (config.inputs.image_res, config.inputs.image_res),
+                interpolation=transforms.InterpolationMode.BICUBIC,
+            ),
+            type_transform,
+            normalize,
+        ]
+    )
+    return transform
 
 
 def get_frame_indices(
@@ -103,6 +85,7 @@ def read_frames_decord(
     max_num_frames=-1,
     client=None,
     trimmed30=False,
+    transform=None,
 ):
     if "s3://" in video_path:
         video_bytes = client.get(video_path)
@@ -128,7 +111,10 @@ def read_frames_decord(
     )
     frames = video_reader.get_batch(frame_indices)  # (T, H, W, C), torch.uint8
     frames = frames.permute(0, 3, 1, 2)  # (T, C, H, W), torch.uint8
-    return frames, frame_indices, duration
+
+    if transform is not None:
+        frames = transform(frames)
+    return frames  # frame_indices, duration
 
 
 class VideoMambaVideoProcessor(ProcessorMixin):
@@ -139,7 +125,8 @@ class VideoMambaVideoProcessor(ProcessorMixin):
         super().__init__(**kwargs)
         self.config = config
         self.transform = get_video_transform(config)
-        self.image_processor = load_and_transform_video
+        # self.image_processor = load_and_transform_video
+        self.video_reader = read_frames_decord
         self.tokenizer = tokenizer
 
     def __call__(
@@ -161,16 +148,30 @@ class VideoMambaVideoProcessor(ProcessorMixin):
             )
 
         if images is not None:
-            images = make_list_of_images(images)
+            if not isinstance(images, list):
+                images = [images]
+
             image_features = [
-                self.image_processor(
+                self.video_reader(
                     image,
-                    self.transform,
-                    video_decode_backend=self.config.vision_config.video_decode_backend,
-                    num_frames=self.config.vision_config.num_frames,
+                    config.inputs.video_input.num_frames,
+                    config.inputs.video_input.sample_type,
+                    max_num_frames=-1,
+                    client=None,
+                    trimmed30=False,
+                    transform=self.transform,
                 )
                 for image in images
             ]
+            # image_features = [
+            #     self.image_processor(
+            #         image,
+            #         self.transform,
+            #         video_decode_backend=self.config.vision_config.video_decode_backend,
+            #         num_frames=self.config.vision_config.num_frames,
+            #     )
+            #     for image in images
+            # ]
             image_features = torch.stack(image_features)
 
         if text is not None and images is not None:

@@ -295,6 +295,9 @@ class LlavaMetaForCausalLM(ABC):
                 new_tmp.append(image)
         image_features = new_tmp
 
+        print(f"image_features shape after projection and concat {len(image_features)}")
+        print(image_features[0].shape)
+        
         # ==================================
 
         # TODO: image start / end is not implemented here to support pretraining.

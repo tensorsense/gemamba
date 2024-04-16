@@ -154,8 +154,8 @@ class VideoMambaVideoProcessor(ProcessorMixin):
             image_features = [
                 self.video_reader(
                     image,
-                    config.inputs.video_input.num_frames,
-                    config.inputs.video_input.sample_type,
+                    self.config.inputs.video_input.num_frames,
+                    self.config.inputs.video_input.sample_type,
                     max_num_frames=-1,
                     client=None,
                     trimmed30=False,
@@ -202,3 +202,5 @@ class VideoMambaVideoProcessor(ProcessorMixin):
         return self.tokenizer.decode(
             *args, skip_special_tokens=skip_special_tokens, **kwargs
         )
+
+

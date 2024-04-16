@@ -206,6 +206,7 @@ class LanguageBindVideoTower(nn.Module):
 
     def feature_select(self, video_forward_outs):
         video_features = video_forward_outs.hidden_states[self.select_layer]  # b t n c
+        print(video_features.shape)
         return video_features  # return all
         # b, t, n, c = video_features.shape
         # if self.select_feature == 'patch':
@@ -223,6 +224,7 @@ class LanguageBindVideoTower(nn.Module):
                 video_feature = self.feature_select(video_forward_out).to(video.dtype)
                 video_features.append(video_feature)
         else:
+            print(videos.shape)
             video_forward_outs = self.video_tower(videos.to(device=self.device, dtype=self.dtype), output_hidden_states=True)
             video_features = self.feature_select(video_forward_outs).to(videos.dtype)
 

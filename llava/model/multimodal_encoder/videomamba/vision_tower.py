@@ -239,12 +239,11 @@ class VideoMambaVisionTower(nn.Module):
         )
 
         # return vision_embeds, pooled_vision_embeds
-        return vision_embeds
+        return pooled_vision_embeds
 
     def feature_select(self, video_forward_outs):
-        print(video_forward_outs.shape)
-        video_features = video_forward_outs.hidden_states[self.select_layer]  # b t n c
-        return video_features  # return all
+        # video_features = video_forward_outs.hidden_states[self.select_layer]  # b t n c
+        return video_forward_outs  # return all
 
     @torch.no_grad()
     def forward(self, videos):

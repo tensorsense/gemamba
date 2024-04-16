@@ -185,7 +185,6 @@ class LlavaMetaForCausalLM(ABC):
     ):
         
         # ==== UPDATED FOR VISION TOWER ====
-
         videos = images
         
         vision_tower = self.get_vision_tower()
@@ -199,104 +198,19 @@ class LlavaMetaForCausalLM(ABC):
                 labels,
             )
 
-        # THIS IS ORIGINAL LLAVA
-        # if type(images) is list or images.ndim == 5:
-        #     if type(images) is list:
-        #         images = [x.unsqueeze(0) if x.ndim == 3 else x for x in images]
-        #     concat_images = torch.cat([image for image in images], dim=0)
-        #     image_features = self.encode_images(concat_images)
-        #     split_sizes = [image.shape[0] for image in images]
-        #     image_features = torch.split(image_features, split_sizes, dim=0)
-        #     mm_patch_merge_type = getattr(self.config, 'mm_patch_merge_type', 'flat')
-        #     image_aspect_ratio = getattr(self.config, 'image_aspect_ratio', 'square')
-        #     if mm_patch_merge_type == 'flat':
-        #         image_features = [x.flatten(0, 1) for x in image_features]
-        #     elif mm_patch_merge_type.startswith('spatial'):
-        #         new_image_features = []
-        #         for image_idx, image_feature in enumerate(image_features):
-        #             if image_feature.shape[0] > 1:
-        #                 base_image_feature = image_feature[0]
-        #                 image_feature = image_feature[1:]
-        #                 height = width = self.get_vision_tower().num_patches_per_side
-        #                 assert height * width == base_image_feature.shape[0]
-        #                 if image_aspect_ratio == 'anyres':
-        #                     num_patch_width, num_patch_height = get_anyres_image_grid_shape(image_sizes[image_idx], self.config.image_grid_pinpoints, self.get_vision_tower().config.image_size)
-        #                     image_feature = image_feature.view(num_patch_height, num_patch_width, height, width, -1)
-        #                 else:
-        #                     raise NotImplementedError
-        #                 if 'unpad' in mm_patch_merge_type:
-        #                     image_feature = image_feature.permute(4, 0, 2, 1, 3).contiguous()
-        #                     image_feature = image_feature.flatten(1, 2).flatten(2, 3)
-        #                     image_feature = unpad_image(image_feature, image_sizes[image_idx])
-        #                     image_feature = torch.cat((
-        #                         image_feature,
-        #                         self.model.image_newline[:, None, None].expand(*image_feature.shape[:-1], 1).to(image_feature.device)
-        #                     ), dim=-1)
-        #                     image_feature = image_feature.flatten(1, 2).transpose(0, 1)
-        #                 else:
-        #                     image_feature = image_feature.permute(0, 2, 1, 3, 4).contiguous()
-        #                     image_feature = image_feature.flatten(0, 3)
-        #                 image_feature = torch.cat((base_image_feature, image_feature), dim=0)
-        #             else:
-        #                 image_feature = image_feature[0]
-        #                 if 'unpad' in mm_patch_merge_type:
-        #                     image_feature = torch.cat((
-        #                         image_feature,
-        #                         self.model.image_newline[None].to(image_feature.device)
-        #                     ), dim=0)
-        #             new_image_features.append(image_feature)
-        #         image_features = new_image_features
-        #     else:
-        #         raise ValueError(f"Unexpected mm_patch_merge_type: {self.config.mm_patch_merge_type}")
-        # else:
-        #     image_features = self.encode_images(images)
-
-        # THIS IS VIDEO LLAVA
-        # image_idx = [idx for idx, img in enumerate(images) if img.ndim == 3]
-        # is_all_image = len(image_idx) == len(images)
-        # video_idx = [idx for idx, vid in enumerate(images) if vid.ndim == 4]
-        # images_minibatch = torch.stack([images[idx] for idx in image_idx]) if len(image_idx) > 0 else []  # mini_b c h w
-
         if isinstance(videos, list):
             videos_minibatch = torch.stack(videos)  # mini_b c t h w
         else:
             videos_minibatch = videos
-        tmp_image_features = [None] * len(videos)
 
-        # if getattr(images_minibatch, 'ndim', 0) == 4:  # batch consists of images, [mini_b, c, h, w]
-        #     if image_tower is not None:
-        #         image_features_minibatch = self.encode_images(images_minibatch)  # [mini_b, l, c]
-        #     else:
-        #         image_features_minibatch = torch.randn(1).to(self.device)  # dummy feature for video-only training under tuning
-        #     for i, pos in enumerate(image_idx):
-        #         tmp_image_features[pos] = image_features_minibatch[i]
+        # image_features = self.encode_images(images)
 
-        if (
-            getattr(videos_minibatch, "ndim", 0) == 5
-        ):  # batch consists of videos, [mini_b, c, t, h, w]
-            video_features_minibatch = self.encode_videos(
-                videos_minibatch
-            )  # fake list [mini_b, t, l, c]
-            for i in range(len(videos)):
-                t = video_features_minibatch[i].shape[0]
-                tmp_image_features[i] = [
-                    video_features_minibatch[i][j] for j in range(t)
-                ]
+        assert getattr(videos_minibatch, "ndim", 0) == 5
+        # [batch, time, c, h, w]
 
-        new_tmp = []
-        for image in tmp_image_features:
-            # print(len(new_tmp), len(image))
-            if isinstance(image, list):
-                t = len(image)
-                for i in range(t):
-                    new_tmp.append(image[i])
-                # print('add video')
-            else:
-                new_tmp.append(image)
-        image_features = new_tmp
-
-        print(f"image_features shape after projection and concat {len(image_features)}")
-        print(image_features[0].shape)
+        image_features = self.encode_videos(
+            videos_minibatch
+        ) # [batch, features]
         
         # ==================================
 
@@ -406,18 +320,11 @@ class LlavaMetaForCausalLM(ABC):
             self.config, "tokenizer_model_max_length", None
         )
 
-        # print(f"new_labels before truncation = {new_labels}")
-
-        # for x in new_labels:
-        #     print((x[:tokenizer_model_max_length] > -100).any())
-
         if tokenizer_model_max_length is not None:
             new_input_embeds = [
                 x[:tokenizer_model_max_length] for x in new_input_embeds
             ]
             new_labels = [x[:tokenizer_model_max_length] for x in new_labels]
-
-        # print(f"new_labels after truncation = {new_labels}")
             
         # Combine them
         max_len = max(x.shape[0] for x in new_input_embeds)

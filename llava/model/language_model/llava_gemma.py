@@ -71,16 +71,6 @@ class LlavaGemmaForCausalLM(GemmaForCausalLM, LlavaMetaForCausalLM):
         cache_position: Optional[torch.LongTensor] = None,
     ) -> Union[Tuple, CausalLMOutputWithPast]:
 
-        # print("\n\n")
-        # print("BEFORE PREPARE FOR MM")
-        # print(f"input_ids = {input_ids}")
-        # print(f"position_ids = {position_ids}")
-        # print(f"attention_mask = {attention_mask}")
-        # print(f"past_key_values = {past_key_values}")
-        # print(f"inputs_embeds = {inputs_embeds}")
-        # print(f"labels = {labels}")
-        # print("\n\n")
-
         if inputs_embeds is None:
             (
                 input_ids,
@@ -99,22 +89,6 @@ class LlavaGemmaForCausalLM(GemmaForCausalLM, LlavaMetaForCausalLM):
                 image_sizes
             )
 
-        # print("AFTER PREPARE FOR MM")
-        # print(f"input_ids = {input_ids}")
-        # print(f"position_ids = {position_ids}")
-        # print(f"attention_mask = {attention_mask}")
-        # print(f"past_key_values = {past_key_values}")
-        # print(f"inputs_embeds = {inputs_embeds}")
-        # print(f"labels = {labels}")
-
-        # print("\n\n\n")
-        # print(input_ids)
-        # print(attention_mask)
-        # print(inputs_embeds)
-        # print((labels > -100).any())
-
-
-
         outputs = super().forward(
             input_ids=input_ids,
             attention_mask=attention_mask,
@@ -129,7 +103,6 @@ class LlavaGemmaForCausalLM(GemmaForCausalLM, LlavaMetaForCausalLM):
             cache_position=cache_position,
         )
 
-        # print(outputs)
         return outputs
 
     @torch.no_grad()
@@ -163,17 +136,7 @@ class LlavaGemmaForCausalLM(GemmaForCausalLM, LlavaMetaForCausalLM):
                 image_sizes=image_sizes
             )
         else:
-            # print("images is indeed None")
             inputs_embeds = self.get_model().embed_tokens(inputs)
-            # print(inputs_embeds)
-
-        # print("IN GENERATE")
-        # print(f"position_ids:::\n {position_ids}\n\n")
-        # print(f"attention_mask:::\n {attention_mask}\n\n")
-        # print(f"inputs_embeds:::\n {inputs_embeds}\n\n")
-        # print(f"kwargs:::\n {kwargs}\n\n")
-
-        # print("Not all prints print")
 
         return super().generate(
             position_ids=position_ids,

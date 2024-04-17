@@ -335,17 +335,6 @@ def preprocess_multimodal(
             
             # ==== UPDATED FOR VISION TOWER ====
 
-            # if DEFAULT_IMAGE_TOKEN in sentence['value']:
-            #     sentence['value'] = sentence['value'].replace(DEFAULT_IMAGE_TOKEN, '').strip()
-            #     sentence['value'] = DEFAULT_IMAGE_TOKEN + '\n' + sentence['value']
-            #     sentence['value'] = sentence['value'].strip()
-            #     if "mmtag" in conversation_lib.default_conversation.version:
-            #         sentence['value'] = sentence['value'].replace(DEFAULT_IMAGE_TOKEN, '<Image>' + DEFAULT_IMAGE_TOKEN + '</Image>')
-            # replace_token = DEFAULT_IMAGE_TOKEN
-            # if data_args.mm_use_im_start_end:
-            #     replace_token = DEFAULT_IM_START_TOKEN + replace_token + DEFAULT_IM_END_TOKEN
-            # sentence["value"] = sentence["value"].replace(DEFAULT_IMAGE_TOKEN, replace_token)
-
             # FROM VIDEO LLAVA
             # ======================================================================================================
             if sentence['value'].startswith(DEFAULT_IMAGE_TOKEN) or sentence['value'].startswith(DEFAULT_VIDEO_TOKEN):  # run with multi-im, multi-vid, multi-im & multi-vid
@@ -379,6 +368,7 @@ def preprocess_multimodal(
             # ======================================================================================================
 
             # ==================================
+            
     return sources
 
 
@@ -729,7 +719,7 @@ def preprocess_gemma(
             cur_len += round_len
 
         cur_len += 1 # for the eos token
-        
+
         target[cur_len:] = IGNORE_INDEX
 
         if cur_len < tokenizer.model_max_length:
@@ -860,145 +850,62 @@ class LazySupervisedDataset(Dataset):
         return length_list
 
     def __getitem__(self, i) -> Dict[str, torch.Tensor]:
-        sources = self.list_data_dict[i]
-        if isinstance(i, int):
-            sources = [sources]
-        assert len(sources) == 1, "Don't know why it is wrapped to a list"  # FIXME
+        try:
+            sources = self.list_data_dict[i]
+            if isinstance(i, int):
+                sources = [sources]
+            assert len(sources) == 1, "Don't know why it is wrapped to a list"  # FIXME
 
-        # ==== UPDATED FOR VISION TOWER ====
+            # ==== UPDATED FOR VISION TOWER ====
 
-        # if 'image' in sources[0]:
-        #     image_file = self.list_data_dict[i]['image']
-        #     image_folder = self.data_args.image_folder
-        #     processor = self.data_args.image_processor
-        #     image = Image.open(os.path.join(image_folder, image_file)).convert('RGB')
-        #     if self.data_args.image_aspect_ratio == 'pad':
-        #         def expand2square(pil_img, background_color):
-        #             width, height = pil_img.size
-        #             if width == height:
-        #                 return pil_img
-        #             elif width > height:
-        #                 result = Image.new(pil_img.mode, (width, width), background_color)
-        #                 result.paste(pil_img, (0, (width - height) // 2))
-        #                 return result
-        #             else:
-        #                 result = Image.new(pil_img.mode, (height, height), background_color)
-        #                 result.paste(pil_img, ((height - width) // 2, 0))
-        #                 return result
-        #         image = expand2square(image, tuple(int(x*255) for x in processor.image_mean))
-        #         image = processor.preprocess(image, return_tensors='pt')['pixel_values'][0]
-        #     else:
-        #         image = processor.preprocess(image, return_tensors='pt')['pixel_values'][0]
-        #     sources = preprocess_multimodal(
-        #         copy.deepcopy([e["conversations"] for e in sources]),
-        #         self.data_args)
-        # else:
-        #     sources = copy.deepcopy([e["conversations"] for e in sources])
-        # data_dict = preprocess(
-        #     sources,
-        #     self.tokenizer,
-        #     has_image=('image' in self.list_data_dict[i]))
-        
-        
-        # FROM VIDEO LLAVA
-        # ======================================================================================================
-        # if 'image' in sources[0] and 'video' not in sources[0]:
-        #     # rank0_print('image')
-        #     image_file = self.list_data_dict[i]['image']
-        #     image_folder = self.data_args.image_folder
-        #     image_processor = self.data_args.image_processor
-        #     image_file = image_file if isinstance(image_file, list) else [image_file]
-        #     image_file = order_pick_k(image_file, MAX_IMAGE_LENGTH)
-        #     # print(f"total {len(self.list_data_dict[i]['image'])} now {len(image_file)}")
-        #     image = [Image.open(os.path.join(image_folder, file)).convert('RGB') for file in image_file]
-        #     if self.data_args.image_aspect_ratio == 'pad':
-        #         image = [expand2square(i, tuple(int(x * 255) for x in image_processor.image_mean)) for i in image]
-        #         image = [image_processor.preprocess(i, return_tensors='pt')['pixel_values'][0] for i in image]
-        #     else:
-        #         image = [image_processor.preprocess(i, return_tensors='pt')['pixel_values'][0] for i in image]
-        #     sources = preprocess_multimodal(copy.deepcopy([e["conversations"] for e in sources]), self.data_args)
-        #     data_dict = preprocess(sources, self.tokenizer, has_image=True)
+            # FROM VIDEO LLAVA
+            # ======================================================================================================
 
-        # elif 'image' not in sources[0] and 'video' in sources[0]:
-        if 'video' in sources[0]:
-            # rank0_print('video')
-            video_file = self.list_data_dict[i]['video']
-            video_folder = self.data_args.video_folder
+            if 'video' in sources[0]:
+                # rank0_print('video')
+                video_file = self.list_data_dict[i]['video']
+                video_folder = self.data_args.video_folder
 
-            # FIXME processor situation is a bit confusing
-            # video_processor = self.data_args.video_processor
-            video_processor = self.data_args.image_processor
-            video_file = video_file if isinstance(video_file, list) else [video_file]
-            video_file = order_pick_k(video_file, MAX_VIDEO_LENGTH)
-            video = [os.path.join(video_folder, file) for file in video_file]
-            image = [video_processor(i, return_tensors='pt')['pixel_values'][0] for i in video]  # fake image
-            # image = [torch.randn(3, 8, 224, 224) for i in video]  # fake image
-            sources = preprocess_multimodal(copy.deepcopy([e["conversations"] for e in sources]), self.data_args)
-            # print('after preprocess_multimodal', sources[0])
-            data_dict = preprocess(sources, self.tokenizer, has_image=True)
-            # print('after preprocess', data_dict['input_ids'])
+                # FIXME processor situation is a bit confusing
+                # video_processor = self.data_args.video_processor
+                video_processor = self.data_args.image_processor
+                video_file = video_file if isinstance(video_file, list) else [video_file]
+                video_file = order_pick_k(video_file, MAX_VIDEO_LENGTH)
+                video = [os.path.join(video_folder, file) for file in video_file]
+                image = [video_processor(i, return_tensors='pt')['pixel_values'][0] for i in video]  # fake image
+                # image = [torch.randn(3, 8, 224, 224) for i in video]  # fake image
+                sources = preprocess_multimodal(copy.deepcopy([e["conversations"] for e in sources]), self.data_args)
+                data_dict = preprocess(sources, self.tokenizer, has_image=True)
 
-        # elif 'image' in sources[0] and 'video' in sources[0]:
-        #     # rank0_print('image & video')
-        #     # video must before image
-        #     video_file = self.list_data_dict[i]['video']
-        #     video_folder = self.data_args.video_folder
-        #     video_processor = self.data_args.video_processor
+            else:
+                sources = copy.deepcopy([e["conversations"] for e in sources])
+                data_dict = preprocess(sources, self.tokenizer, has_image=False)
 
-        #     image_file = self.list_data_dict[i]['image']
-        #     image_folder = self.data_args.image_folder
-        #     image_processor = self.data_args.image_processor
+            # ==========================================================================================================
 
-        #     image_file = image_file if isinstance(image_file, list) else [image_file]
-        #     image_file = order_pick_k(image_file, MAX_IMAGE_LENGTH)
-        #     image = [Image.open(os.path.join(image_folder, file)).convert('RGB') for file in image_file]
-        #     if self.data_args.image_aspect_ratio == 'pad':
-        #         image = [expand2square(i, tuple(int(x * 255) for x in image_processor.image_mean)) for i in image]
-        #         image = [image_processor.preprocess(i, return_tensors='pt')['pixel_values'][0] for i in image]
-        #     else:
-        #         image = [image_processor.preprocess(i, return_tensors='pt')['pixel_values'][0] for i in image]
+            # ==================================
 
-        #     video_file = video_file if isinstance(video_file, list) else [video_file]
-        #     video_file = order_pick_k(video_file, MAX_VIDEO_LENGTH)
-        #     video = [os.path.join(video_folder, file) for file in video_file]
-        #     video = [video_processor(i, return_tensors='pt')['pixel_values'][0] for i in video]  # fake image
+            if isinstance(i, int):
+                data_dict = dict(input_ids=data_dict["input_ids"][0],
+                                labels=data_dict["labels"][0])
 
-        #     image = video + image  # video must before image
+            # ==== UPDATED FOR VISION TOWER ====
 
-        #     sources = preprocess_multimodal(copy.deepcopy([e["conversations"] for e in sources]), self.data_args)
-        #     data_dict = preprocess(sources, self.tokenizer, has_image=True)
-        else:
-            sources = copy.deepcopy([e["conversations"] for e in sources])
-            data_dict = preprocess(sources, self.tokenizer, has_image=False)
-        # ==========================================================================================================
+            if 'image' in self.list_data_dict[i] or 'video' in self.list_data_dict[i]:
+                data_dict['image'] = image
+            elif self.data_args.is_multimodal:
+                # image does not exist in the data, but the model is multimodal
+                # crop_size = self.data_args.image_processor.crop_size
+                crop_size = {'height': 224, 'width': 224}  # dummy image
+                data_dict['image'] = [torch.zeros(3, crop_size['height'], crop_size['width'])]
+            
+            # ==================================
 
-        # ==================================
-
-        if isinstance(i, int):
-            data_dict = dict(input_ids=data_dict["input_ids"][0],
-                             labels=data_dict["labels"][0])
-
-        # # image exist in the data
-        # if 'image' in self.list_data_dict[i]:
-        #     data_dict['image'] = image
-        # elif self.data_args.is_multimodal:
-        #     # image does not exist in the data, but the model is multimodal
-        #     crop_size = self.data_args.image_processor.crop_size
-        #     data_dict['image'] = torch.zeros(3, crop_size['height'], crop_size['width'])
-
-        # ==== UPDATED FOR VISION TOWER ====
-
-        if 'image' in self.list_data_dict[i] or 'video' in self.list_data_dict[i]:
-            data_dict['image'] = image
-        elif self.data_args.is_multimodal:
-            # image does not exist in the data, but the model is multimodal
-            # crop_size = self.data_args.image_processor.crop_size
-            crop_size = {'height': 224, 'width': 224}  # dummy image
-            data_dict['image'] = [torch.zeros(3, crop_size['height'], crop_size['width'])]
-        
-        # ==================================
-
-        return data_dict
+            return data_dict
+        except Exception as e:
+            print(f'Error with {e}')
+            import random
+            return self.__getitem__(random.randint(0, self.__len__() - 1))
 
 
 @dataclass
@@ -1024,56 +931,6 @@ class DataCollatorForSupervisedDataset(object):
             labels=labels,
             attention_mask=input_ids.ne(self.tokenizer.pad_token_id),
         )
-        
-        # ==== UPDATED FOR VISION TOWER ====
-
-        # FROM VIDEO LLAVA
-        # ======================================================================================================
-        # # origin image, if batch_size=6: [[image], [image], [video], [image, image], [video, video], [video, image]]
-        # '''
-        #     will be converted to a sequence of list, if batch size=6:
-        #     [
-        #         image(3, 224, 224),      # sample 1
-        #         image(3, 224, 224),      # sample 2
-        #         video(8, 3, 224, 224),   # sample 3
-        #         image(3, 224, 224),      # sample 4
-        #         image(3, 224, 224),      # sample 4
-        #         video(8, 3, 224, 224),   # sample 5
-        #         video(8, 3, 224, 224),   # sample 5
-        #         video(8, 3, 224, 224),   # sample 6
-        #         image(3, 224, 224),      # sample 6
-        #     ]
-        # '''
-        # if 'image' in instances[0]:
-        #     images = [instance['image'] for instance in instances]
-
-        #     # adapt to multi-video or multi-image or multi-image & video
-        #     new_images = []
-        #     for image in images:
-        #         if type(image) is list:
-        #             for i in image:
-        #                 new_images.append(i)
-        #         else:
-        #             new_images.append(image)
-        #     images = new_images
-
-        # # ==========Too many videos or images may lead to OOM, so we encode them one by one======================
-        #     batch['images'] = images
-        # #     if all(x is not None and x.shape == images[0].shape for x in images):  # if all images or all videos
-        # #         batch['images'] = torch.stack(images)
-        # #     else:
-        # #         batch['images'] = images
-        # else:
-        #     raise ValueError(f'pretrain, {instances}')
-
-        # ==================================
-
-        # if 'image' in instances[0]:
-        #     images = [instance['image'] for instance in instances]
-        #     if all(x is not None and x.shape == images[0].shape for x in images):
-        #         batch['images'] = torch.stack(images)
-        #     else:
-        #         batch['images'] = images
         
         # ==== UPDATED FOR VISION TOWER ====
 
@@ -1302,35 +1159,6 @@ def train(attn_implementation=None):
                     args=training_args,
                     **data_module)
     
-    # print("===================================")
-    # print("tokenizer:")
-    # print(type(tokenizer))
-    # print(tokenizer.special_tokens_map)
-
-    print("model:")
-    print(type(model))
-
-    # print(model.get_model().mm_projector[0].weight)
-
-    # print("trained_params:")
-    # for param_name, param in model.named_parameters():
-    #     if param.requires_grad:
-    #         print(param_name)
-    #         print("requires_grad")
-
-    # # print("data_module[train_dataset]")
-    # # print(data_module["train_dataset"][0]["input_ids"])
-
-    # # print(tokenizer.vocab_size)
-    # print(data_module["train_dataset"][0].keys())
-    # # print(tokenizer.decode(data_module["train_dataset"][0]))
-
-    # loader = trainer.get_train_dataloader()
-    # print(next(enumerate(loader))[1].keys())
-    # print(next(enumerate(loader))[1]["input_ids"].shape)
-    # print(next(enumerate(loader))[1]["images"][0].shape)
-    # print(next(enumerate(loader))[1]["attention_mask"])
-
     if list(pathlib.Path(training_args.output_dir).glob("checkpoint-*")):
         trainer.train(resume_from_checkpoint=True)
     else:

@@ -8,11 +8,10 @@ deepspeed llava/train/train.py \
     --deepspeed ./scripts/zero2_offload.json \
     --model_name_or_path google/gemma-2b-it \
     --version gemma \
-    --data_path /data/valley/train_json/valley_exist.json \
-    --video_folder /data/valley \
+    --data_path /data/liedetector/train_gpt.json \
+    --video_folder /data/liedetector \
     --vision_tower videomamba \
     --mm_projector_type mlp2x_gelu \
-    --tune_mm_mlp_adapter True \
     --freeze_backbone True \
     --mm_vision_select_layer -2 \
     --mm_use_im_start_end False \
@@ -20,8 +19,8 @@ deepspeed llava/train/train.py \
     --bf16 True \
     --output_dir ./checkpoints/llava_gemma_mamba_v0_pt \
     --num_train_epochs 1 \
-    --per_device_train_batch_size 24 \
-    --per_device_eval_batch_size 24 \
+    --per_device_train_batch_size 4 \
+    --per_device_eval_batch_size 4 \
     --gradient_accumulation_steps 1 \
     --evaluation_strategy "no" \
     --save_strategy "steps" \
@@ -39,3 +38,6 @@ deepspeed llava/train/train.py \
     --lazy_preprocess True \
     --report_to tensorboard \
     --cache_dir "./cache_dir"
+
+        # --tune_mm_mlp_adapter True \  saves only the adapter into the checkpoint
+        # --data_path /data/valley/train_json/valley_exist.json \

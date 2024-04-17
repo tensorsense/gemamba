@@ -669,8 +669,6 @@ def preprocess_gemma(
 ) -> Dict:
     conv = conversation_lib.default_conversation.copy()
 
-    # print(f"sources = {sources}")
-
     roles = {"human": conv.roles[0], "gpt": conv.roles[1]}
 
     # Apply prompt templates
@@ -685,10 +683,6 @@ def preprocess_gemma(
             assert role == conv.roles[j % 2], f"{i}"
             conv.append_message(role, sentence["value"])
         conversations.append(conv.get_prompt())
-
-        # print(f"conv.get_prompt = {conv.get_prompt()}")
-    
-    # print(f"conversations = {conversations}")
 
     # Tokenize conversations
     if has_image:  # TODO check that this works
@@ -712,23 +706,14 @@ def preprocess_gemma(
     for conversation, target in zip(conversations, targets):
         total_len = int(target.ne(tokenizer.pad_token_id).sum())
 
-        # print(f"total_len = {total_len}")
-
         rounds = conversation.split(conv.sep2)
-
-        # print(f"rounds = {rounds}")
-
         cur_len = 0
-        # target[:cur_len] = IGNORE_INDEX
 
         for i, round in enumerate(rounds):
             if round == "":
                 break
 
             parts = round.split(sep)
-
-            # print(f"parts = {parts}")
-
             if len(parts) != 2:
                 break
             parts[0] += sep
@@ -740,14 +725,12 @@ def preprocess_gemma(
                 round_len = len(tokenizer(round).input_ids)
                 instruction_len = len(tokenizer(parts[0]).input_ids) - 2
 
-            # print(f"instruction_len = {instruction_len}")
             target[cur_len : cur_len + instruction_len] = IGNORE_INDEX
-
             cur_len += round_len
-            # print(f"cur_len + round_len = {cur_len}")
-        target[cur_len:] = IGNORE_INDEX
 
-        # print(f"intermediate target = {target}")
+        cur_len += 1 # for the eos token
+        
+        target[cur_len:] = IGNORE_INDEX
 
         if cur_len < tokenizer.model_max_length:
             if cur_len != total_len:
@@ -757,9 +740,6 @@ def preprocess_gemma(
                     f" (ignored)"
                 )
         
-        # print(f"target = {target}")
-        # print(f"input_ids = {input_ids}")
-
     return dict(
         input_ids=input_ids,
         labels=targets,

@@ -18,10 +18,10 @@ deepspeed llava/train/train.py \
     --mm_use_im_start_end False \
     --mm_use_im_patch_token False \
     --bf16 True \
-    --output_dir ./checkpoints/gemamba_v0_pretrain \
+    --output_dir ./checkpoints/llava_gemma_mamba_v0_pt \
     --num_train_epochs 1 \
-    --per_device_train_batch_size 8 \
-    --per_device_eval_batch_size 4 \
+    --per_device_train_batch_size 24 \
+    --per_device_eval_batch_size 24 \
     --gradient_accumulation_steps 1 \
     --evaluation_strategy "no" \
     --save_strategy "steps" \

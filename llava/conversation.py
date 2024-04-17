@@ -107,30 +107,7 @@ class Conversation:
 
         # ==== UPDATED FOR LLM BACKBONE ====
         elif self.sep_style == SeparatorStyle.GEMMA:
-
-            # {{ bos_token }}
-            # {% if messages[0]['role'] == 'system' %}
-            #   {{ raise_exception('System role not supported') }}
-            #{% endif %}
-
-            # {% for message in messages %}
-            #   {% if (message['role'] == 'user') != (loop.index0 % 2 == 0) %}
-            #       {{ raise_exception('Conversation roles must alternate user/assistant/user/assistant/...') }}
-            #   {% endif %}
-            #   {% if (message['role'] == 'assistant') %}
-            #       {% set role = 'model' %}
-            #   {% else %}
-            #       {% set role = message['role'] %}
-            #   {% endif %}
-
-            #   {{ '<start_of_turn>' + role + '\n' + message['content'] | trim + '<end_of_turn>\n' }}
-            # {% endfor %}
-            # {% if add_generation_prompt %}
-            #   {{'<start_of_turn>model\n'}}
-            # {% endif %}
-
-            # ret = self.sep
-            ret = ""
+            ret = self.sep
             assert not self.system, "System message not supported in Gemma"
 
             for i, (role, message) in enumerate(messages):
@@ -140,11 +117,7 @@ class Conversation:
                 if message:
                     formatted_message = f"<start_of_turn>{role}\n{message}<end_of_turn>\n"
                     ret += formatted_message
-
-            # print(f"before lstrip: {ret}")
-            # ret = ret.lstrip(self.sep)
-            # print(f"after lstrip: {ret}")
-            # print(f"self.sep = {self.sep}")
+            ret += self.sep2
         # =================================
 
         else:

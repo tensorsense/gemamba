@@ -161,5 +161,6 @@ cython_debug/
 
 .github
 cache_dir
+checkpoints
 
 videomamba_m16_k400_mask_ft_f8_res224.pth

@@ -26,5 +26,7 @@
 	"runArgs": [
 		"--gpus",
 		"all"
-	]
+	],
+
+	"shutdownAction": "none",
 }

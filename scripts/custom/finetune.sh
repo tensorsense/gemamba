@@ -2,7 +2,8 @@ cd /data/gemamba/
 
 export PYTHONPATH=$PYTHONPATH:/data/gemamba/
 export HF_TOKEN=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
-export DS_SKIP_CUDA_CHECK=1
+# export DS_SKIP_CUDA_CHECK=1
+export CUDA_VISIBLE_DEVICES=0,1,2
 
 deepspeed llava/train/train.py \
     --deepspeed ./scripts/zero2_offload.json \

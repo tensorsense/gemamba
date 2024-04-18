@@ -6,14 +6,14 @@ from .hf_parts.processing_videomamba import VideoMambaVideoProcessor
 from .models.umt_videomamba import UMT_VIDEOMAMBA
 from .models.backbones.bert.tokenization_bert import BertTokenizer
 from .utils.easydict import EasyDict
-from .models.backbones.videomamba import build_videomamba
+from .models.backbones.videomamba.videomamba import PretrainVideoMamba
 
 num_frames = 8
 img_size = 224
 batch_size = 64
 max_txt_l = 32
 
-model_pth = "llava/model/multimodal_encoder/videomamba/videomamba_m16_k400_mask_ft_f8_res224.pth"
+model_pth = "videomamba_m16_5M_f8_res224.pth"
 
 config_dict = {
     "num_frames": num_frames,
@@ -104,11 +104,30 @@ config_dict = {
     "zero_shot": True,
     "save_latest": False,
     "auto_resume": False,
-    "pretrained_path": model_pth,
+    # "pretrained_path": model_pth,
     "distributed": False,
 }
 
 DEFAULT_VIDEOMAMBA_CONFIG = EasyDict(config_dict)
+
+
+class VideoMambaEncoder(torch.nn.Module):
+    def __init__(self, vision_encoder):  # , vision_proj):
+        super().__init__()
+
+        self.vision_encoder = vision_encoder
+        # self.vision_proj = vision_proj
+
+    def forward(self, x, mask=None, use_image=False, keep_temporal=False):
+        vision_embeds, pooled_vision_embeds, _ = self.vision_encoder(
+            x, mask, use_image, keep_temporal
+        )
+
+        # vision_embeds is batch, 1568, 576
+        # pooled_vision_embeds is batch, frames, 576
+
+        # vision_proj = self.vision_proj(pooled_vision_embeds)
+        return pooled_vision_embeds
 
 
 class VideoMambaVisionTower(nn.Module):
@@ -147,24 +166,51 @@ class VideoMambaVisionTower(nn.Module):
             self.mamba_config.model.text_encoder.pretrained
         )
 
-        # need to register config and autoprocessor first
-        # self.video_processor = VideoMambaVideoProcessor.from_pretrained(
-        #     self.vision_tower_name
-        # )
-
         self.video_processor = VideoMambaVideoProcessor(
             config=self.mamba_config, tokenizer=tokenizer
         )
 
-        # model = UMT_VIDEOMAMBA(
-        #     config=self.mamba_config, tokenizer=tokenizer, is_pretrain=False
-        # )
-        # model = model.to(torch.device(self.mamba_config.device))
-
         encoder_name = self.mamba_config.model.vision_encoder.name
-        # logger.info(f"Build vision_encoder: {encoder_name}")
-        if "videomamba" in encoder_name:
-            model = build_videomamba(self.mamba_config.model)
+
+        if not "videomamba" in encoder_name:
+            raise NotImplementedError
+
+        config = DEFAULT_VIDEOMAMBA_CONFIG.model
+
+        checkpoint = torch.load(config.vision_encoder.pretrained, map_location="cpu")
+
+        new_state_dict = {}
+
+        for k, v in checkpoint.items():
+            if "vision_encoder" in k or "vision_proj" in k:
+                new_state_dict[k] = v
+
+        vision_encoder = PretrainVideoMamba(
+            img_size=config.vision_encoder.img_size,
+            patch_size=config.vision_encoder.patch_size,
+            depth=config.vision_encoder.depth,
+            embed_dim=config.vision_encoder.embed_dim,
+            drop_path_rate=config.vision_encoder.drop_path_rate,
+            ssm_cfg=config.vision_encoder.ssm_cfg,
+            norm_epsilon=config.vision_encoder.norm_epsilon,
+            fused_add_norm=config.vision_encoder.fused_add_norm,
+            rms_norm=config.vision_encoder.rms_norm,
+            residual_in_fp32=config.vision_encoder.residual_in_fp32,
+            bimamba=config.vision_encoder.bimamba,
+            pool_type=config.vision_encoder.pool_type,
+            kernel_size=config.vision_encoder.kernel_size,
+            num_frames=config.vision_encoder.num_frames,
+            use_checkpoint=config.vision_encoder.use_checkpoint,
+            checkpoint_num=config.vision_encoder.checkpoint_num,
+            clip_decoder_embed_dim=config.vision_encoder.clip_decoder_embed_dim,
+            clip_output_dim=config.vision_encoder.clip_output_dim,
+            clip_return_layer=config.vision_encoder.clip_return_layer,
+            clip_student_return_interval=config.vision_encoder.clip_student_return_interval,
+            add_pool_norm=True,  # TO GET POOLED FEATURES
+        )
+
+        # vision_proj = torch.nn.Linear(config.vision_encoder.embed_dim, config.embed_dim)
+        model = VideoMambaEncoder(vision_encoder)  # , vision_proj)
 
         if self.mamba_config.fp16:
             if self.mamba_config.get("bf16", True):
@@ -174,22 +220,7 @@ class VideoMambaVisionTower(nn.Module):
                 model = model.half()
                 self._dtype = torch.half
 
-        checkpoint = torch.load(self.mamba_config.pretrained_path, map_location="cpu")
-
-        # print(checkpoint.keys())
-
-        if "model" in checkpoint.keys():
-            state_dict = checkpoint["model"]
-        else:
-            state_dict = checkpoint
-
-        print("LOADING WHAT SEEMS LIKE THE CORRECT STATE DICT")
-
-        print(type(model))
-
-        # self.hidden_size = model.embed_dim
-
-        msg = model.load_state_dict(state_dict, strict=False)
+        msg = model.load_state_dict(new_state_dict, strict=True)
         print(msg)
 
         self.vision_tower = model
@@ -197,16 +228,6 @@ class VideoMambaVisionTower(nn.Module):
 
         self.is_loaded = True
         print("DONE LOADING")
-
-    # def feature_select(self, image_forward_outs):
-    #     image_features = image_forward_outs.hidden_states[self.select_layer]
-    #     if self.select_feature == "patch":
-    #         image_features = image_features[:, 1:]
-    #     elif self.select_feature == "cls_patch":
-    #         image_features = image_features
-    #     else:
-    #         raise ValueError(f"Unexpected select feature: {self.select_feature}")
-    #     return image_features
 
     def extract_video_features(self, image):
         """
@@ -225,22 +246,21 @@ class VideoMambaVisionTower(nn.Module):
         T = image.shape[1]
         # use_image = True if T == 1 else False
         use_image = False
-        
+
         # print(image.shape)
 
         image = image.permute(0, 2, 1, 3, 4)  # [B,T,C,H,W] -> [B,C,T,H,W]
         # whether save temporal dimension
         keep_temporal = self.config.model.vision_encoder.keep_temporal
 
-        vision_embeds, pooled_vision_embeds, _ = self.vision_tower(
+        vision_features = self.vision_tower(
             image,
             None,
             use_image,
             keep_temporal,
         )
 
-        # return vision_embeds, pooled_vision_embeds
-        return pooled_vision_embeds
+        return vision_features
 
     def feature_select(self, video_forward_outs):
         # video_features = video_forward_outs.hidden_states[self.select_layer]  # b t n c
@@ -248,31 +268,11 @@ class VideoMambaVisionTower(nn.Module):
 
     @torch.no_grad()
     def forward(self, videos):
-        # if type(images) is list:
-        #     image_features = []
-        #     for image in images:
-        #         image_forward_out = self.vision_tower(
-        #             image.to(device=self.device, dtype=self.dtype).unsqueeze(0),
-        #             output_hidden_states=True,
-        #         )
-        #         image_feature = self.feature_select(image_forward_out).to(image.dtype)
-        #         image_features.append(image_feature)
-        # else:
-        #     image_forward_outs = self.vision_tower(
-        #         images.to(device=self.device, dtype=self.dtype),
-        #         output_hidden_states=True,
-        #     )
-        #     image_features = self.feature_select(image_forward_outs).to(images.dtype)
 
         # return image_features
         if type(videos) is list:
             video_features = []
             for video in videos:
-                # video_forward_out = self.vision_tower(
-                #     video.to(device=self.device, dtype=self.dtype).unsqueeze(0),
-                #     # output_hidden_states=True,
-                # )
-
                 video_forward_out = self.extract_video_features(
                     video.to(device=self.device, dtype=self.dtype).unsqueeze(0),
                 )
@@ -280,10 +280,6 @@ class VideoMambaVisionTower(nn.Module):
                 video_feature = self.feature_select(video_forward_out).to(video.dtype)
                 video_features.append(video_feature)
         else:
-            # video_forward_outs = self.vision_tower(
-            #     videos.to(device=self.device, dtype=self.dtype),
-            #     # output_hidden_states=True,
-            # )
 
             video_forward_outs = self.extract_video_features(
                 videos.to(device=self.device, dtype=self.dtype),
@@ -292,57 +288,6 @@ class VideoMambaVisionTower(nn.Module):
             video_features = self.feature_select(video_forward_outs).to(videos.dtype)
 
         return video_features
-
-    # def __init__(self, video_tower, args, delay_load=False, cache_dir='./cache_dir'):
-    #     super().__init__()
-
-    #     self.is_loaded = False
-
-    #     self.video_tower_name = video_tower
-    #     self.select_layer = args.mm_vision_select_layer
-    #     self.select_feature = getattr(args, 'mm_vision_select_feature', 'patch')
-
-    #     self.cache_dir = cache_dir
-
-    #     if not delay_load:
-    #         self.load_model()
-    #     else:
-    #         self.cfg_only = LanguageBindVideoConfig.from_pretrained(self.video_tower_name, cache_dir=self.cache_dir)
-
-    # ############################################################
-    # def load_model(self, device_map=None):
-    #     model = LanguageBindVideo.from_pretrained(self.video_tower_name, cache_dir=self.cache_dir)
-    #     self.video_processor = LanguageBindVideoProcessor(model.config)
-
-    #     # model = LanguageBindImage.from_pretrained('LanguageBind/LanguageBind_Image', cache_dir=self.cache_dir)
-    #     self.video_tower = model.vision_model
-    #     self.video_tower.requires_grad_(False)
-
-    #     self.is_loaded = True
-
-    # def feature_select(self, video_forward_outs):
-    #     video_features = video_forward_outs.hidden_states[self.select_layer]  # b t n c
-    #     return video_features  # return all
-    #     # b, t, n, c = video_features.shape
-    #     # if self.select_feature == 'patch':
-    #     #     video_features = video_features[:, :, 1:]
-    #     # else:
-    #     #     raise ValueError(f'Unexpected select feature: {self.select_feature}')
-    #     # return video_features
-
-    # @torch.no_grad()
-    # def forward(self, videos):
-    #     if type(videos) is list:
-    #         video_features = []
-    #         for video in videos:
-    #             video_forward_out = self.video_tower(video.to(device=self.device, dtype=self.dtype).unsqueeze(0), output_hidden_states=True)
-    #             video_feature = self.feature_select(video_forward_out).to(video.dtype)
-    #             video_features.append(video_feature)
-    #     else:
-    #         video_forward_outs = self.video_tower(videos.to(device=self.device, dtype=self.dtype), output_hidden_states=True)
-    #         video_features = self.feature_select(video_forward_outs).to(videos.dtype)
-
-    #     return video_features
 
     @property
     def dummy_feature(self):
@@ -368,7 +313,7 @@ class VideoMambaVisionTower(nn.Module):
 
     @property
     def hidden_size(self):
-        return self.vision_tower.embed_dim
+        return self.mamba_config.model.embed_dim
         # return self.config.hidden_size
 
     @property

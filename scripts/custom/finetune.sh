@@ -19,7 +19,7 @@ deepspeed llava/train/train.py \
     --image_aspect_ratio pad \
     --group_by_modality_length True \
     --bf16 True \
-    --output_dir ./checkpoints/llava_gemma_mamba_v0_ft \
+    --output_dir ./checkpoints/llava_gemma_mamba_v1_ft \
     --num_train_epochs 1 \
     --per_device_train_batch_size 4 \
     --per_device_eval_batch_size 4 \

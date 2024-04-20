@@ -2,22 +2,24 @@ cd /data/gemamba/
 
 export PYTHONPATH=$PYTHONPATH:/data/gemamba/
 export HF_TOKEN=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
-export DS_SKIP_CUDA_CHECK=1
+# export DS_SKIP_CUDA_CHECK=1
+export CUDA_VISIBLE_DEVICES=0,1,2
 
 deepspeed llava/train/train.py \
     --deepspeed ./scripts/zero2_offload.json \
     --model_name_or_path google/gemma-2b-it \
     --version gemma \
-    --data_path /data/liedetector/train_gpt.json \
-    --video_folder /data/liedetector \
+    --data_path /data/valley/train_json/valley_exist.json \
+    --video_folder /data/valley \
     --vision_tower videomamba \
     --mm_projector_type mlp2x_gelu \
-    --freeze_backbone True \
     --mm_vision_select_layer -2 \
     --mm_use_im_start_end False \
     --mm_use_im_patch_token False \
+    --image_aspect_ratio pad \
+    --group_by_modality_length True \
     --bf16 True \
-    --output_dir ./checkpoints/llava_gemma_mamba_v0_pt \
+    --output_dir ./checkpoints/llava_gemma_mamba_v1_pt \
     --num_train_epochs 1 \
     --per_device_train_batch_size 4 \
     --per_device_eval_batch_size 4 \
@@ -41,3 +43,4 @@ deepspeed llava/train/train.py \
 
         # --tune_mm_mlp_adapter True \  saves only the adapter into the checkpoint
         # --data_path /data/valley/train_json/valley_exist.json \
+            # --freeze_backbone True \

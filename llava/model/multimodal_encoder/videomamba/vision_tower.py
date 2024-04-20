@@ -182,7 +182,8 @@ class VideoMambaVisionTower(nn.Module):
         new_state_dict = {}
 
         for k, v in checkpoint.items():
-            if "vision_encoder" in k or "vision_proj" in k:
+            # if "vision_encoder" in k or "vision_proj" in k:
+            if "vision_encoder" in k:
                 new_state_dict[k] = v
 
         vision_encoder = PretrainVideoMamba(
@@ -211,7 +212,7 @@ class VideoMambaVisionTower(nn.Module):
 
         # vision_proj = torch.nn.Linear(config.vision_encoder.embed_dim, config.embed_dim)
         model = VideoMambaEncoder(vision_encoder)  # , vision_proj)
-
+        model.to(torch.device(self.mamba_config.device))
         if self.mamba_config.fp16:
             if self.mamba_config.get("bf16", True):
                 model = model.to(torch.bfloat16)
@@ -313,7 +314,7 @@ class VideoMambaVisionTower(nn.Module):
 
     @property
     def hidden_size(self):
-        return self.mamba_config.model.embed_dim
+        return self.mamba_config.model.vision_encoder.embed_dim
         # return self.config.hidden_size
 
     @property

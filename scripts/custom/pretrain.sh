@@ -3,7 +3,7 @@ cd /data/gemamba/
 export PYTHONPATH=$PYTHONPATH:/data/gemamba/
 export HF_TOKEN=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
 # export DS_SKIP_CUDA_CHECK=1
-export CUDA_VISIBLE_DEVICES=0,1,2
+# export CUDA_VISIBLE_DEVICES=0,1,2
 
 deepspeed llava/train/train.py \
     --deepspeed ./scripts/zero2_offload.json \
@@ -12,6 +12,7 @@ deepspeed llava/train/train.py \
     --data_path /data/valley/train_json/valley_exist.json \
     --video_folder /data/valley \
     --vision_tower videomamba \
+    --freeze_backbone True \
     --mm_projector_type mlp2x_gelu \
     --mm_vision_select_layer -2 \
     --mm_use_im_start_end False \
@@ -19,7 +20,7 @@ deepspeed llava/train/train.py \
     --image_aspect_ratio pad \
     --group_by_modality_length True \
     --bf16 True \
-    --output_dir ./checkpoints/llava_gemma_mamba_v1_pt \
+    --output_dir ./checkpoints/llava_gemma_mamba_v2_pt \
     --num_train_epochs 1 \
     --per_device_train_batch_size 4 \
     --per_device_eval_batch_size 4 \

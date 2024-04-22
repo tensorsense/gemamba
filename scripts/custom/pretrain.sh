@@ -2,10 +2,11 @@ cd /data/gemamba/
 
 export PYTHONPATH=$PYTHONPATH:/data/gemamba/
 export HF_TOKEN=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
+export CUTLASS_PATH=~/cutlass
 # export DS_SKIP_CUDA_CHECK=1
 # export CUDA_VISIBLE_DEVICES=0,1,2
 
-deepspeed llava/train/train.py \
+deepspeed llava/train/train_mem.py \
     --deepspeed ./scripts/zero2_offload.json \
     --model_name_or_path google/gemma-2b-it \
     --version gemma \

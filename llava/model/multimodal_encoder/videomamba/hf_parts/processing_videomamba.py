@@ -110,10 +110,12 @@ def read_frames_decord(
         max_num_frames=max_num_frames,
     )
     frames = video_reader.get_batch(frame_indices)  # (T, H, W, C), torch.uint8
-    frames = frames.permute(0, 3, 1, 2)  # (T, C, H, W), torch.uint8
-
+    frames = frames.permute(0, 3, 1, 2)  # (T, C, H, W), torch.uint8 for transforms to work
+    
     if transform is not None:
         frames = transform(frames)
+    
+    frames = frames.permute(1, 0, 2, 3)  # (C, T, H, W), torch.uint8 for 3d conv to work
     return frames  # frame_indices, duration
 
 

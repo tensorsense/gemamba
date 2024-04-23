@@ -1,7 +1,8 @@
 {
 	"name": "gemamba",
 	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
-	"image": "nvcr.io/nvidia/pytorch:23.07-py3",
+	// "image": "nvcr.io/nvidia/pytorch:23.07-py3",
+	"image": "nvcr.io/nvidia/pytorch:24.03-py3",
 
 	// Use 'postCreateCommand' to run commands after the container is created.
 	"postCreateCommand": "bash .devcontainer/postCreateCommand.sh",
@@ -25,7 +26,9 @@
 
 	"runArgs": [
 		"--gpus",
-		"all"
+		"all",
+		"--shm-size",
+		"32gb"
 	],
 
 	"shutdownAction": "none",

@@ -1,16 +1,16 @@
-torch
-torchvision
+apex==0.1
+torch==2.3.0a0
+torchvision==0.18.0a0
 transformers
 timm
 peft
 deepspeed
 flash-attn
-xformers!=0.0.13
-apex==0.1
 bitsandbytes
+# xformers==0.0.25 broken and needs to be installed from source
+
 sentencepiece
 tensorboardX
-
 python-dotenv
 ipywidgets
 pillow
@@ -19,8 +19,8 @@ protobuf
 # video processing
 # pytorchvideo
 decord
-av
-imageio
+# av
+# imageio
 opencv-python==4.8.0.74
 
 # languagebind

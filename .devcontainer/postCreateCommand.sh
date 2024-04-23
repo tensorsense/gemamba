@@ -10,8 +10,8 @@ pip3 install -e llava/model/multimodal_encoder/videomamba/causal-conv1d
 pip3 install -e llava/model/multimodal_encoder/videomamba/mamba
 
 # fix flash attention 2
-pip3 install --upgrade flash-attn --no-build-isolation
-pip3 uninstall transformer-engine
+# pip3 install --upgrade flash-attn --no-build-isolation
+# pip3 uninstall transformer-engine
 
 # fix async_io warning
 apt install -y libaio-dev

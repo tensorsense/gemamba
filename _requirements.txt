@@ -1,0 +1,27 @@
+torch==2.1.0a0+b5021ba
+torchvision==0.16.0a0
+transformers==4.40.0
+timm==0.9.16
+peft==0.10.0
+deepspeed==0.14.1
+flash-attn==2.5.7
+xformers==0.0.12
+apex==0.1
+bitsandbytes==0.43.1
+sentencepiece==0.2.0
+tensorboardX==2.6.2.2
+
+python-dotenv==1.0.1
+ipywidgets==8.1.2
+pillow==9.2.0
+protobuf==3.20.3
+
+# video processing
+# pytorchvideo
+decord==0.6.0
+av==12.0.0
+imageio==2.34.1
+opencv-python==4.8.0.74
+
+# languagebind
+einops==0.6.1

@@ -15,7 +15,8 @@
 				"ms-python.vscode-pylance",
 				"ms-python.black-formatter",
 				"ms-toolsai.jupyter",
-				"ms-toolsai.jupyter-renderers"
+				"ms-toolsai.jupyter-renderers",
+				"ms-toolsai.tensorboard"
 			]
 		}
 	},

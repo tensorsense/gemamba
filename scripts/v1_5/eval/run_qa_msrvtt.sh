@@ -1,8 +1,8 @@
 
 
-CKPT_NAME="llava_gemma_mamba_v11_lora"
+CKPT_NAME="llava_gemma_mamba_v18_adapter_vcgpt/checkpoint-1000"
 model_path="checkpoints/${CKPT_NAME}"
-model_base="checkpoints/llava_gemma_mamba_base_3"
+# model_base="checkpoints/llava_gemma_mamba_base_3"
 cache_dir="./cache_dir"
 GPT_Zero_Shot_QA="/data/data"
 video_dir="${GPT_Zero_Shot_QA}/MSRVTT_Zero_Shot_QA/videos/all"

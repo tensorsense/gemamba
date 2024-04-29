@@ -114,10 +114,14 @@ class Conversation:
                 if i == 0:
                     assert message, "first message should not be none"
                     assert role == self.roles[0], "first message should come from user"
+                
+                ret += f"<start_of_turn>{role}\n"
                 if message:
-                    formatted_message = f"<start_of_turn>{role}\n{message}<end_of_turn>\n"
-                    ret += formatted_message
-            ret += self.sep2
+                    ret += f"{message}<end_of_turn>\n"
+
+            if messages[-1][1]:
+                ret += self.sep2  # if last message exists then this is for train, so add eos token
+    
         # =================================
 
         else:

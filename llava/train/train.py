@@ -1158,6 +1158,9 @@ def train(attn_implementation=None):
                     tokenizer=tokenizer,
                     args=training_args,
                     **data_module)
+
+    safe_save_model_for_hf_trainer(trainer=trainer,
+                                       output_dir=training_args.output_dir)
     
     if list(pathlib.Path(training_args.output_dir).glob("checkpoint-*")):
         trainer.train(resume_from_checkpoint=True)

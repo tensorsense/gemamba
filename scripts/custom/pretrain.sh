@@ -20,7 +20,7 @@ deepspeed llava/train/train_mem.py \
     --gradient_accumulation_steps 1 \
     --evaluation_strategy "no" \
     --save_strategy "steps" \
-    --save_steps 5000 \
+    --save_steps 1000 \
     --save_total_limit 1 \
     --weight_decay 0. \
     --warmup_ratio 0.03 \
@@ -35,13 +35,15 @@ deepspeed llava/train/train_mem.py \
     --lazy_preprocess True \
     --report_to tensorboard \
     --cache_dir "./cache_dir" \
-    --data_path /data/valley/train_json/valley_exist.json \
-    --video_folder /data/valley \
-    --output_dir ./checkpoints/llava_gemma_mamba_v14_full_valley \
+    --data_path /data/valley/train_json/videochatgpt_tune_fixed.json \
+    --video_folder /data/videochatgpt \
+    --output_dir ./checkpoints/llava_gemma_mamba_debug \
     --num_train_epochs 1 \
-    --learning_rate 2e-5 \
+    --learning_rate 3e-5 \
+    --pretrain_mm_mlp_adapter mm_projector.bin \
 
-    # --data_path /data/valley/train_json/videochatgpt_tune_fixed.json \
-    # --video_folder /data/videochatgpt \
+
+    # --resume_from_checkpoint ./checkpoints/llava_gemma_mamba_v14_full_valley \
+    # --data_path /data/valley/train_json/valley_exist.json \
+    # --video_folder /data/valley \
     # --tune_mm_mlp_adapter True \  saves only the adapter into the checkpoint
-    # --pretrain_mm_mlp_adapter ./checkpoints/llava_gemma_mamba_v4_pt_adapter/mm_projector.bin \

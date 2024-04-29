@@ -710,10 +710,10 @@ def preprocess_gemma(
 
             if has_image:
                 round_len = len(tokenizer_image_token(round, tokenizer))
-                instruction_len = len(tokenizer_image_token(parts[0], tokenizer)) - 2
+                instruction_len = len(tokenizer_image_token(parts[0], tokenizer)) #- 2
             else:
                 round_len = len(tokenizer(round).input_ids)
-                instruction_len = len(tokenizer(parts[0]).input_ids) - 2
+                instruction_len = len(tokenizer(parts[0]).input_ids) #- 2
 
             target[cur_len : cur_len + instruction_len] = IGNORE_INDEX
             cur_len += round_len
@@ -729,12 +729,11 @@ def preprocess_gemma(
                     f"WARNING: tokenization mismatch: {cur_len} vs. {total_len}."
                     f" (ignored)"
                 )
-        
+            
     return dict(
         input_ids=input_ids,
         labels=targets,
     )
-
 
 # =================================
 
@@ -1138,6 +1137,15 @@ def train(attn_implementation=None):
         training_args.use_im_start_end = model_args.mm_use_im_start_end
         model.config.mm_use_im_patch_token = model_args.mm_use_im_patch_token
         model.initialize_vision_tokenizer(model_args, tokenizer=tokenizer)
+
+    # if training_args.resume_from_checkpoint:
+    #     print("LOADING CHECKPOINT")
+    #     model = model.from_pretrained(training_args.resume_from_checkpoint)
+    #     vision_tower = model.get_vision_tower()
+    #     if not vision_tower.is_loaded:
+    #         vision_tower.load_model(device_map={"": training_args.device})
+
+    #     vision_tower.to(device=training_args.device, dtype=torch.float16)
 
     if training_args.bits in [4, 8]:
         from peft.tuners.lora import LoraLayer

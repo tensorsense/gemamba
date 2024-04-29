@@ -88,8 +88,9 @@ def read_frames_decord(
     transform=None,
 ):
     if "s3://" in video_path:
-        video_bytes = client.get(video_path)
-        video_reader = VideoReader(io.BytesIO(video_bytes), num_threads=1)
+        raise NotImplementedError
+        # video_bytes = client.get(video_path)
+        # video_reader = VideoReader(io.BytesIO(video_bytes), num_threads=1)
     else:
         video_reader = VideoReader(video_path, num_threads=1)
     vlen = len(video_reader)

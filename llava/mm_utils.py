@@ -183,6 +183,11 @@ def process_images(images, image_processor, model_cfg):
 
 
 def tokenizer_image_token(prompt, tokenizer, image_token_index=IMAGE_TOKEN_INDEX, return_tensors=None):
+    """
+    <image> special token needs to get inserted separately.
+    However, tokenizer puts <bos> token in the beginning of every chunk, so we need to remove those in order to avoid confusing the model.
+    This also means that the bos token does not need to be inluded in the original prompt.
+    """
     prompt_chunks = [tokenizer(chunk).input_ids for chunk in prompt.split('<image>')]
 
     def insert_separator(X, sep):

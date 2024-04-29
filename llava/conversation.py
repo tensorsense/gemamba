@@ -107,7 +107,7 @@ class Conversation:
 
         # ==== UPDATED FOR LLM BACKBONE ====
         elif self.sep_style == SeparatorStyle.GEMMA:
-            ret = self.sep
+            ret = ""# self.sep # <bos> token gets inserted automatically by the tokenizer
             assert not self.system, "System message not supported in Gemma"
 
             for i, (role, message) in enumerate(messages):

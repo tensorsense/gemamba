@@ -15,6 +15,7 @@ class SeparatorStyle(Enum):
     LLAMA_2 = auto()
     # ==== UPDATED FOR LLM BACKBONE ====
     GEMMA = auto()
+    PHI3 = auto()
     # =================================
 
 
@@ -122,6 +123,32 @@ class Conversation:
             if messages[-1][1]:
                 ret += self.sep2  # if last message exists then this is for train, so add eos token
     
+        elif self.sep_style == SeparatorStyle.PHI3:
+
+            # <|user|>
+            # I am going to Paris, what should I see?<|end|>
+            # <|assistant|>
+            # Paris, the capital of France, is known for its stunning architecture, art museums, historical landmarks, and romantic atmosphere. Here are some of the top attractions to see in Paris:\n\n1. The Eiffel Tower: The iconic Eiffel Tower is one of the most recognizable landmarks in the world and offers breathtaking views of the city.\n2. The Louvre Museum: The Louvre is one of the world's largest and most famous museums, housing an impressive collection of art and artifacts, including the Mona Lisa.\n3. Notre-Dame Cathedral: This beautiful cathedral is one of the most famous landmarks in Paris and is known for its Gothic architecture and stunning stained glass windows.\n\nThese are just a few of the many attractions that Paris has to offer. With so much to see and do, it's no wonder that Paris is one of the most popular tourist destinations in the world."<|end|>
+            # <|user|>
+            # What is so great about #1?<|end|>
+            # <|assistant|>
+
+
+            ret = ""# self.sep # <bos> token gets inserted automatically by the tokenizer
+            assert not self.system, "System message not supported in Gemma" # but this is Phi3 of course
+
+            for i, (role, message) in enumerate(messages):
+                if i == 0:
+                    assert message, "first message should not be none"
+                    assert role == self.roles[0], "first message should come from user" # should it?
+                
+                ret += f"<|{role}|>\n"
+                if message:
+                    ret += f"{message}\n<|end|>"
+
+            # if messages[-1][1]:
+            #     ret += self.sep2  # if last message exists then this is for train, so add eos token
+
         # =================================
 
         else:
@@ -400,6 +427,17 @@ conv_gemma = Conversation(
     messages=(),
     offset=0,
     sep_style=SeparatorStyle.GEMMA,
+    sep="<bos>",
+    sep2="<eos>",
+)
+
+conv_gemma = Conversation(
+    system=None,
+    roles=("user", "assistant"),
+    version="phi3",
+    messages=(),
+    offset=0,
+    sep_style=SeparatorStyle.PHI3,
     sep="<bos>",
     sep2="<eos>",
 )

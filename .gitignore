@@ -166,3 +166,5 @@ checkpoints
 videomamba_m16_k400_mask_ft_f8_res224.pth
 videomamba_m16_5M_f8_res224.pth
 videos_zero_shot
+mm_projector.bin
+notebooks

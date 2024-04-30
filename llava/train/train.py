@@ -696,7 +696,7 @@ def preprocess_gemma(
     for conversation, target in zip(conversations, targets):
         total_len = int(target.ne(tokenizer.pad_token_id).sum())
 
-        rounds = conversation.split(conv.sep2)
+        rounds = conversation.split(conv.sep2) # TODO broken for multi-round conversations
         cur_len = 0
 
         for i, round in enumerate(rounds):
@@ -779,7 +779,7 @@ def preprocess_phi3(
     for conversation, target in zip(conversations, targets):
         total_len = int(target.ne(tokenizer.pad_token_id).sum())
 
-        rounds = conversation.split(conv.sep2)
+        rounds = conversation.split(conv.sep2)  # TODO broken for multi-round conversations
         cur_len = 0
 
         for i, round in enumerate(rounds):
@@ -812,7 +812,7 @@ def preprocess_phi3(
                     f"WARNING: tokenization mismatch: {cur_len} vs. {total_len}."
                     f" (ignored)"
                 )
-            
+
     return dict(
         input_ids=input_ids,
         labels=targets,

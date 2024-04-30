@@ -144,10 +144,10 @@ class Conversation:
                 
                 ret += f"<|{role}|>\n"
                 if message:
-                    ret += f"{message}\n<|end|>"
+                    ret += f"{message}\n<|end|>\n"
 
-            # if messages[-1][1]:
-            #     ret += self.sep2  # if last message exists then this is for train, so add eos token
+            if messages[-1][1]:
+                ret += self.sep2  # if last message exists then this is for train, so add eos token
 
         # =================================
 
@@ -431,16 +431,17 @@ conv_gemma = Conversation(
     sep2="<eos>",
 )
 
-conv_gemma = Conversation(
+conv_phi3 = Conversation(
     system=None,
     roles=("user", "assistant"),
     version="phi3",
     messages=(),
     offset=0,
     sep_style=SeparatorStyle.PHI3,
-    sep="<bos>",
-    sep2="<eos>",
+    sep="<s>",
+    sep2="<|endoftext|>",
 )
+
 # ==================================
 
 default_conversation = conv_vicuna_v1
@@ -453,8 +454,10 @@ conv_templates = {
     "mistral_instruct": conv_mistral_instruct,
     "chatml_direct": conv_chatml_direct,
     "mistral_direct": conv_chatml_direct,
+# ==== UPDATED FOR LLM BACKBONE ====
     "gemma": conv_gemma,
-
+    "phi3": conv_phi3,
+# ==================================
     "plain": conv_llava_plain,
     "v0_plain": conv_llava_plain,
     "llava_v0": conv_llava_v0,

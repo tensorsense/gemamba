@@ -1,6 +1,6 @@
 
 
-CKPT_NAME="llava_gemma_mamba_v18_adapter_vcgpt/checkpoint-1000"
+CKPT_NAME="llava_gemma_mamba_v18_adapter_vcgpt"
 model_path="checkpoints/${CKPT_NAME}"
 # model_base="checkpoints/llava_gemma_mamba_base_3"
 cache_dir="./cache_dir"
@@ -22,7 +22,6 @@ CHUNKS=${#GPULIST[@]}
 for IDX in $(seq 0 $((CHUNKS-1))); do
   CUDA_VISIBLE_DEVICES=${GPULIST[$IDX]} python3 llava/eval/video/run_inference_video_qa.py \
       --model_path ${model_path} \
-      --model_base ${model_base} \
       --cache_dir ${cache_dir} \
       --video_dir ${video_dir} \
       --gt_file_question ${gt_file_question} \
@@ -33,6 +32,8 @@ for IDX in $(seq 0 $((CHUNKS-1))); do
       --temperature '0.2' \
       --chunk_idx $IDX &
 done
+    #   --model_base ${model_base} \
+
 
 wait
 

@@ -6,7 +6,7 @@ then
 fi
 
 GPT_Zero_Shot_QA="/data/data"
-output_name="llava_gemma_mamba_v11_lora"
+output_name="llava_gemma_mamba_v18_adapter_vcgpt"
 pred_path="${GPT_Zero_Shot_QA}/MSRVTT_Zero_Shot_QA/${output_name}/1_0.json" # merge.jsonl when it's finished
 output_dir="${GPT_Zero_Shot_QA}/MSRVTT_Zero_Shot_QA/${output_name}/gpt"
 output_json="${GPT_Zero_Shot_QA}/MSRVTT_Zero_Shot_QA/${output_name}/results.json"

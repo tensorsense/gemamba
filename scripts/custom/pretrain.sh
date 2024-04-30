@@ -7,7 +7,7 @@ export CUTLASS_PATH=~/cutlass
 
 deepspeed llava/train/train_mem.py \
     --deepspeed ./scripts/zero2_offload.json \
-    --model_name_or_path google/gemma-2b-it \
+    --model_name_or_path google/gemma-1.1-2b-it \
     --version gemma \
     --vision_tower videomamba \
     --mm_projector_type mlp2x_gelu \
@@ -37,9 +37,9 @@ deepspeed llava/train/train_mem.py \
     --cache_dir "./cache_dir" \
     --data_path /data/valley/train_json/videochatgpt_tune_fixed.json \
     --video_folder /data/videochatgpt \
-    --output_dir ./checkpoints/llava_gemma_mamba_debug \
-    --num_train_epochs 1 \
-    --learning_rate 3e-5 \
+    --output_dir ./checkpoints/llava_gemma_mamba_v20_1.1_adapter_vcgpt \
+    --num_train_epochs 3 \
+    --learning_rate 2e-5 \
     --pretrain_mm_mlp_adapter mm_projector.bin \
 
 

@@ -100,7 +100,7 @@ class LlavaPhi3ForCausalLM(Phi3ForCausalLM, LlavaMetaForCausalLM):
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
-            cache_position=cache_position,
+            # cache_position=cache_position,
         )
 
         return outputs

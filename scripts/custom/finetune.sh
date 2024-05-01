@@ -2,15 +2,13 @@ cd /data/gemamba/
 
 export PYTHONPATH=$PYTHONPATH:/data/gemamba/
 export HF_TOKEN=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
-# export DS_SKIP_CUDA_CHECK=1
-export CUDA_VISIBLE_DEVICES=0,1,2
+export CUTLASS_PATH=~/cutlass
+# export CUDA_VISIBLE_DEVICES=0
 
-deepspeed llava/train/train.py \
+deepspeed llava/train/train_mem.py \
     --deepspeed ./scripts/zero2_offload.json \
-    --model_name_or_path google/gemma-2b-it \
-    --version gemma \
-    --data_path /data/liedetector/train_gpt.json \
-    --video_folder /data/liedetector/ \
+    --model_name_or_path microsoft/Phi-3-mini-4k-instruct \
+    --version phi3 \
     --vision_tower videomamba \
     --mm_projector_type mlp2x_gelu \
     --mm_vision_select_layer -2 \
@@ -19,29 +17,33 @@ deepspeed llava/train/train.py \
     --image_aspect_ratio pad \
     --group_by_modality_length True \
     --bf16 True \
-    --output_dir ./checkpoints/llava_gemma_mamba_v1_ft \
-    --num_train_epochs 1 \
-    --per_device_train_batch_size 4 \
-    --per_device_eval_batch_size 4 \
     --gradient_accumulation_steps 1 \
     --evaluation_strategy "no" \
     --save_strategy "steps" \
-    --save_steps 10000 \
+    --save_steps 100 \
     --save_total_limit 1 \
-    --learning_rate 2e-5 \
     --weight_decay 0. \
     --warmup_ratio 0.03 \
     --lr_scheduler_type "cosine" \
     --logging_steps 1 \
     --tf32 True \
-    --model_max_length 3072  \
+    --model_max_length 8128 \
     --gradient_checkpointing True \
-    --dataloader_num_workers 16 \
+    --per_device_train_batch_size 128 \
+    --per_device_eval_batch_size 128 \
+    --dataloader_num_workers 48 \
     --lazy_preprocess True \
     --report_to tensorboard \
     --cache_dir "./cache_dir" \
-    
-    # --model_name_or_path lmsys/vicuna-7b-v1.5 \
-    # --pretrain_mm_mlp_adapter ./checkpoints/Video-LLaVA-Pretrain-7B/mm_projector.bin \
-    # --tune_mm_mlp_adapter True \
-    # --freeze_backbone True \
+    --data_path /data/valley/train_json/videochatgpt_tune_fixed.json \
+    --video_folder /data/videochatgpt \
+    --output_dir ./checkpoints/llava_phi3_mamba_v4_adapter_ft \
+    --num_train_epochs 3 \
+    --learning_rate 2e-5 \
+    --pretrain_mm_mlp_adapter checkpoints/llava_phi3_mamba_v2_adapter/mm_projector.bin \
+
+    # --data_path /data/valley/train_json/valley_exist.json \
+    # --video_folder /data/valley \
+    # --pretrain_mm_mlp_adapter mm_projector.bin \
+    # --resume_from_checkpoint ./checkpoints/llava_gemma_mamba_v14_full_valley \
+    # --tune_mm_mlp_adapter True \  saves only the adapter into the checkpoint

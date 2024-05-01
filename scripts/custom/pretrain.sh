@@ -35,9 +35,9 @@ deepspeed llava/train/train_mem.py \
     --lazy_preprocess True \
     --report_to tensorboard \
     --cache_dir "./cache_dir" \
-    --data_path /data/data/valley/valley/train_json/valley_exist.json \
-    --video_folder /data/data/valley/valley \
-    --output_dir ./checkpoints/llava_phi3_mamba_v1_adapter \
+    --data_path /data/valley/train_json/valley_exist.json \
+    --video_folder /data/valley \
+    --output_dir ./checkpoints/llava_phi3_mamba_v2_adapter \
     --tune_mm_mlp_adapter True \
     --num_train_epochs 1 \
     --learning_rate 1e-3 

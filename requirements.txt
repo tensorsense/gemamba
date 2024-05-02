@@ -1,5 +1,5 @@
 apex==0.1
-torch==2.3.0a0
+torch==2.3.0a0  # specific to nvidia pytorch container
 torchvision==0.18.0a0
 transformers
 timm

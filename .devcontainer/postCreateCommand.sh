@@ -8,17 +8,16 @@ pip3 install git+https://github.com/facebookresearch/pytorchvideo.git@28fe037d21
 
 pip3 install -e llava/model/multimodal_encoder/videomamba/causal-conv1d
 pip3 install -e llava/model/multimodal_encoder/videomamba/mamba
-pip3 install git+https://github.com/huggingface/transformers
-
-# fix flash attention 2
-# pip3 install --upgrade flash-attn --no-build-isolation
-# pip3 uninstall transformer-engine
+pip3 install git+https://github.com/huggingface/transformers  # Phi3 is not in a pip release yet
 
 # fix async_io warning
 apt install -y libaio-dev
 
 # fix cutlass warning
 git clone https://github.com/NVIDIA/cutlass.git ~/cutlass
+
+# download pretrained weights for videomamba
+wget https://huggingface.co/OpenGVLab/VideoMamba/resolve/main/videomamba_m16_25M_f8_res224.pth
 
 nvidia-smi
 

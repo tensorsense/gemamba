@@ -1,8 +1,8 @@
-# GeMamba
+# Gemamba
 
 This repository contains training code for the Gemamba multimodal language model.
 
-GeMamba is the first multimodal LLM to combine a Mamba-based video encoder with performant and flexible [Gemma](https://huggingface.co/google/gemma-2b-it) transformer LLM in a LLaVA-style architecture.
+Gemamba is the first multimodal LLM to combine a Mamba-based video encoder with performant and flexible [Gemma](https://huggingface.co/google/gemma-2b-it) transformer LLM in a LLaVA-style architecture.
 
 ## Getting started
 

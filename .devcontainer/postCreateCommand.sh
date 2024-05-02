@@ -8,6 +8,7 @@ pip3 install git+https://github.com/facebookresearch/pytorchvideo.git@28fe037d21
 
 pip3 install -e llava/model/multimodal_encoder/videomamba/causal-conv1d
 pip3 install -e llava/model/multimodal_encoder/videomamba/mamba
+pip3 install git+https://github.com/huggingface/transformers
 
 # fix flash attention 2
 # pip3 install --upgrade flash-attn --no-build-isolation

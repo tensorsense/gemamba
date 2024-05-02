@@ -29,7 +29,7 @@
 		"--gpus",
 		"all",
 		"--shm-size",
-		"32gb"
+		"128gb"
 	],
 
 	"shutdownAction": "none",

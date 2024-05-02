@@ -7,8 +7,8 @@ export CUTLASS_PATH=~/cutlass
 
 deepspeed llava/train/train_mem.py \
     --deepspeed ./scripts/zero2_offload.json \
-    --model_name_or_path microsoft/Phi-3-mini-4k-instruct \
-    --version phi3 \
+    --model_name_or_path google/gemma-1.1-2b-it \
+    --version gemma \
     --vision_tower videomamba \
     --mm_projector_type mlp2x_gelu \
     --mm_vision_select_layer -2 \
@@ -27,20 +27,20 @@ deepspeed llava/train/train_mem.py \
     --lr_scheduler_type "cosine" \
     --logging_steps 1 \
     --tf32 True \
-    --model_max_length 8128 \
+    --model_max_length 4096 \
     --gradient_checkpointing True \
-    --per_device_train_batch_size 128 \
-    --per_device_eval_batch_size 128 \
+    --per_device_train_batch_size 24 \
+    --per_device_eval_batch_size 24 \
     --dataloader_num_workers 48 \
     --lazy_preprocess True \
     --report_to tensorboard \
     --cache_dir "./cache_dir" \
     --data_path /data/valley/train_json/videochatgpt_tune_fixed.json \
     --video_folder /data/videochatgpt \
-    --output_dir ./checkpoints/llava_phi3_mamba_v4_adapter_ft \
+    --output_dir ./checkpoints/llava_gemma_mamba_v26_adapter25M_ft \
     --num_train_epochs 3 \
     --learning_rate 2e-5 \
-    --pretrain_mm_mlp_adapter checkpoints/llava_phi3_mamba_v2_adapter/mm_projector.bin \
+    --pretrain_mm_mlp_adapter checkpoints/llava_gemma_mamba_v24_adapter25M/mm_projector.bin \
 
     # --data_path /data/valley/train_json/valley_exist.json \
     # --video_folder /data/valley \

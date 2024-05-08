@@ -209,6 +209,68 @@ def tokenizer_image_token(prompt, tokenizer, image_token_index=IMAGE_TOKEN_INDEX
     return input_ids
 
 
+def tokenizer_image_token2(
+    prompts, tokenizer, image_token_index=IMAGE_TOKEN_INDEX, return_tensors=None
+):
+    """
+    <image> special token needs to get inserted separately.
+    However, tokenizer puts <bos> token in the beginning of every chunk, so we need to remove those in order to avoid confusing the model.
+    This also means that the bos token does not need to be inluded in the original prompt.
+    """
+
+    if not isinstance(prompts, list):
+        prompts = [prompts]
+
+    input_ids_batch = []
+
+    for prompt in prompts:
+        prompt_chunks = [
+            tokenizer(chunk).input_ids for chunk in prompt.split("<image>")
+        ]
+
+        def insert_separator(X, sep):
+            return [ele for sublist in zip(X, [sep] * len(X)) for ele in sublist][:-1]
+
+        input_ids = []
+        offset = 0
+        if (
+            len(prompt_chunks) > 0
+            and len(prompt_chunks[0]) > 0
+            and prompt_chunks[0][0] == tokenizer.bos_token_id
+        ):
+            offset = 1
+            input_ids.append(prompt_chunks[0][0])
+
+        for x in insert_separator(prompt_chunks, [image_token_index] * (offset + 1)):
+            input_ids.extend(x[offset:])
+
+        if return_tensors is not None:
+            if return_tensors == "pt":
+                input_ids = torch.tensor(input_ids, dtype=torch.long)
+            else:
+                raise ValueError(f"Unsupported tensor type: {return_tensors}")
+        else:
+            raise NotImplementedError
+
+        input_ids_batch.append(input_ids)
+
+    max_len = max([len(tensor) for tensor in input_ids_batch])
+    input_ids_batch_padded = []
+    attn_masks_batch_padded = []
+
+    for input_ids in input_ids_batch:
+        padding = torch.tensor([tokenizer.pad_token_id] * (max_len - len(input_ids)))
+        input_ids_batch_padded.append(torch.cat([padding, input_ids]))
+        attn_masks_batch_padded.append(
+            torch.cat([torch.zeros_like(padding), torch.ones_like(input_ids)])
+        )
+
+    return {
+        "input_ids": torch.vstack(input_ids_batch_padded).long(),
+        "attention_mask": torch.vstack(attn_masks_batch_padded).long(),
+    }
+
+
 def get_model_name_from_path(model_path):
     model_path = model_path.strip("/")
     model_paths = model_path.split("/")

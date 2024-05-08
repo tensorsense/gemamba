@@ -108,7 +108,7 @@ class LlavaGemmaForCausalLM(GemmaForCausalLM, LlavaMetaForCausalLM):
     @torch.no_grad()
     def generate(
         self,
-        inputs: Optional[torch.Tensor] = None,
+        input_ids: Optional[torch.Tensor] = None,
         images: Optional[torch.Tensor] = None,
         image_sizes: Optional[torch.Tensor] = None,
         **kwargs,
@@ -120,14 +120,14 @@ class LlavaGemmaForCausalLM(GemmaForCausalLM, LlavaMetaForCausalLM):
 
         if images is not None:
             (
-                inputs,
+                input_ids,
                 position_ids,
                 attention_mask,
                 _,
                 inputs_embeds,
                 _
             ) = self.prepare_inputs_labels_for_multimodal(
-                inputs,
+                input_ids,
                 position_ids,
                 attention_mask,
                 None,
@@ -136,7 +136,7 @@ class LlavaGemmaForCausalLM(GemmaForCausalLM, LlavaMetaForCausalLM):
                 image_sizes=image_sizes
             )
         else:
-            inputs_embeds = self.get_model().embed_tokens(inputs)
+            inputs_embeds = self.get_model().embed_tokens(input_ids)
 
         return super().generate(
             position_ids=position_ids,

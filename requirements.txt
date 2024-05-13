@@ -15,6 +15,7 @@ python-dotenv
 ipywidgets
 pillow
 protobuf
+flask
 
 # video processing
 # pytorchvideo

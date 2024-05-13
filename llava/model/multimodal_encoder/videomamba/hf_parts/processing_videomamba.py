@@ -6,7 +6,6 @@ import torch
 import numpy as np
 import random
 
-decord.bridge.set_bridge("torch")
 
 OPENAI_CLIP_MEAN = (0.48145466, 0.4578275, 0.40821073)
 OPENAI_CLIP_STD = (0.26862954, 0.26130258, 0.27577711)
@@ -87,6 +86,8 @@ def read_frames_decord(
     trimmed30=False,
     transform=None,
 ):
+    decord.bridge.set_bridge("torch")
+
     if "s3://" in video_path:
         raise NotImplementedError
         # video_bytes = client.get(video_path)

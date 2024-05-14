@@ -41,6 +41,8 @@ tokenizer, model, image_processor, context_len = load_pretrained_model(
     model_path, None, model_name
 )
 
+tokenizer.pad_token = "<pad>"
+model.config.tokenizer_padding_side = "left"
 model.get_model().to(DEFAULT_DEVICE, dtype=DEFAULT_DTYPE)
 model.get_model().mm_projector.to(DEFAULT_DEVICE, dtype=DEFAULT_DTYPE)
 
@@ -50,7 +52,7 @@ def predict():
     json_input = request.get_json(force=True)
 
     temperature = 0.1
-    max_new_tokens = 1024
+    max_new_tokens = 128
 
     # 1. Parse input prompts
     inputs = json_input["inputs"]
@@ -61,16 +63,11 @@ def predict():
     ), "Found a mismatch between the number of text prompts and videos"
 
     # 2. Prepare batched inputs
-
     text_inputs = _prepare_text_batch(texts)
     video_tensor = _prepare_video_batch(video_paths)
 
-    print(text_inputs)
-    print(text_inputs["input_ids"].shape)
-    print(tokenizer.batch_decode(text_inputs["input_ids"][text_inputs["input_ids"] >= 0]))
-
     # 3. Run the inference
-    with torch.inference_mode(), torch.amp.autocast(DEFAULT_DEVICE.type):
+    with torch.inference_mode():#, torch.amp.autocast(DEFAULT_DEVICE.type):
         output_ids = model.generate(
             **text_inputs,
             images=video_tensor,

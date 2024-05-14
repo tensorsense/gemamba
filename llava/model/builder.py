@@ -40,7 +40,7 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
             bnb_4bit_quant_type='nf4'
         )
     else:
-        kwargs['torch_dtype'] = torch.float16
+        kwargs['torch_dtype'] = torch.bfloat16
 
     if use_flash_attn:
         kwargs['attn_implementation'] = 'flash_attention_2'
@@ -118,7 +118,7 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
             # ==== UPDATED FOR LLM BACKEND ====
                 
             elif 'gemma' in model_name.lower():
-                tokenizer = AutoTokenizer.from_pretrained(model_path)
+                tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=False)
                 model = LlavaGemmaForCausalLM.from_pretrained(
                     model_path,
                     low_cpu_mem_usage=True,

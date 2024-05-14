@@ -230,17 +230,24 @@ def tokenizer_image_token(
     max_len = max([len(tensor) for tensor in input_ids_batch])
     input_ids_batch_padded = []
     attn_masks_batch_padded = []
+    position_ids_batch_padded = []
 
     for input_ids in input_ids_batch:
         padding = torch.tensor([tokenizer.pad_token_id] * (max_len - len(input_ids)))
         input_ids_batch_padded.append(torch.cat([padding, input_ids]))
-        attn_masks_batch_padded.append(
-            torch.cat([torch.zeros_like(padding), torch.ones_like(input_ids)])
-        )
+
+        attention_mask = torch.cat([torch.zeros_like(padding), torch.ones_like(input_ids)])
+        attn_masks_batch_padded.append(attention_mask)
+
+        position_ids = attention_mask.long().cumsum(-1) - 1
+        position_ids.masked_fill_(attention_mask == 0, 1)
+        position_ids_batch_padded.append(position_ids)
+
 
     return {
         "input_ids": torch.vstack(input_ids_batch_padded).long(),
         "attention_mask": torch.vstack(attn_masks_batch_padded).long(),
+        # "position_ids": torch.vstack(position_ids_batch_padded).long(), # Gemma doesn't seem to like those
     }
 
 

@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  llm_container_1:
+    image: gemamba-inference:latest
+    ports:
+      - "5001:5000"
+    volumes:
+      - /data:/data
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=0
+
+  # llm_container_2:
+  #   image: gemamba-inference:latest
+  #   ports:
+  #     - "5002:5000"
+  #   volumes:
+  #     - /data:/data
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: 1
+  #             capabilities: [gpu]
+  #   environment:
+  #     - NVIDIA_VISIBLE_DEVICES=1
+
+  # llm_container_3:
+  #   image: gemamba-inference:latest
+  #   ports:
+  #     - "5003:5000"
+  #   volumes:
+  #     - /data:/data
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: 1
+  #             capabilities: [gpu]
+  #   environment:
+  #     - NVIDIA_VISIBLE_DEVICES=2
+
+  # llm_container_4:
+  #   image: gemamba-inference:latest
+  #   ports:
+  #     - "5004:5000"
+  #   volumes:
+  #     - /data:/data
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: 1
+  #             capabilities: [gpu]
+  #   environment:
+  #     - NVIDIA_VISIBLE_DEVICES=3

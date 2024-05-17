@@ -1,5 +1,6 @@
 import os
 import sys
+from time import time
 from pathlib import Path
 
 sys.path.append(Path(".").resolve().as_posix())
@@ -29,7 +30,8 @@ from flask import Flask, request, jsonify
 app = Flask(__name__)
 
 
-CHECKPOINT_PATH = "checkpoints/llava_gemma_mamba_v18_adapter_vcgpt"
+# CHECKPOINT_PATH = "checkpoints/llava_gemma_mamba_v18_adapter_vcgpt"
+CHECKPOINT_PATH = "checkpoints/llava_gemma_mamba_v26_adapter25M_ft"
 CONV_MODE = "gemma"
 DEFAULT_DEVICE = torch.device("cuda")
 DEFAULT_DTYPE = torch.bfloat16
@@ -51,8 +53,8 @@ model.get_model().mm_projector.to(DEFAULT_DEVICE, dtype=DEFAULT_DTYPE)
 def predict():
     json_input = request.get_json(force=True)
 
-    temperature = 0.1
-    max_new_tokens = 128
+    temperature = json_input.get("temperature", 0.1)
+    max_new_tokens = json_input.get("max_new_tokens", 128)
 
     # 1. Parse input prompts
     inputs = json_input["inputs"]
@@ -67,7 +69,8 @@ def predict():
     video_tensor = _prepare_video_batch(video_paths)
 
     # 3. Run the inference
-    with torch.inference_mode():#, torch.amp.autocast(DEFAULT_DEVICE.type):
+    start_time = time()
+    with torch.inference_mode():  # , torch.amp.autocast(DEFAULT_DEVICE.type):
         output_ids = model.generate(
             **text_inputs,
             images=video_tensor,
@@ -80,9 +83,13 @@ def predict():
             max_new_tokens=max_new_tokens,
             use_cache=True,
         )
+    proctime = time() - start_time
+    ntokens = len(output_ids[0])
 
     outputs = tokenizer.batch_decode(output_ids, skip_special_tokens=True)
-    return jsonify({"predicted_texts": outputs})
+    return jsonify(
+        {"predicted_texts": outputs, "proctime": proctime, "ntokens": ntokens}
+    )
 
 
 def _build_prompt(text):

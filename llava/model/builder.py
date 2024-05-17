@@ -118,7 +118,7 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
             # ==== UPDATED FOR LLM BACKEND ====
                 
             elif 'gemma' in model_name.lower():
-                tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=False)
+                tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True)
                 model = LlavaGemmaForCausalLM.from_pretrained(
                     model_path,
                     low_cpu_mem_usage=True,

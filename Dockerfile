@@ -22,5 +22,5 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # Set the entrypoint script
 ENTRYPOINT ["entrypoint.sh"]
-# CMD ["python", "app.py"]
-CMD /bin/bash
+CMD ["python", "predict.py"]
+# CMD /bin/bash

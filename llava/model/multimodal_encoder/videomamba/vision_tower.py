@@ -13,8 +13,8 @@ img_size = 224
 batch_size = 64
 max_txt_l = 32
 
-model_pth = "videomamba_m16_5M_f8_res224.pth"
-# model_pth = "videomamba_m16_25M_f8_res224.pth"
+# model_pth = "videomamba_m16_5M_f8_res224.pth"
+model_pth = "videomamba_m16_25M_f8_res224.pth"
 
 config_dict = {
     "num_frames": num_frames,

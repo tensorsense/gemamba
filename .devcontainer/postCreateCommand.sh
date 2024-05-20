@@ -17,7 +17,7 @@ apt install -y libaio-dev
 git clone https://github.com/NVIDIA/cutlass.git ~/cutlass
 
 # download pretrained weights for videomamba
-wget https://huggingface.co/OpenGVLab/VideoMamba/resolve/main/videomamba_m16_25M_f8_res224.pth
+# wget https://huggingface.co/OpenGVLab/VideoMamba/resolve/main/videomamba_m16_25M_f8_res224.pth
 
 nvidia-smi
 

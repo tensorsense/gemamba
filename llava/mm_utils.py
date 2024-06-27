@@ -183,7 +183,7 @@ def process_images(images, image_processor, model_cfg):
 
 
 def tokenizer_image_token(
-    prompts, tokenizer, image_token_index=IMAGE_TOKEN_INDEX, return_tensors=None
+    prompts, tokenizer, padding_side="right", image_token_index=IMAGE_TOKEN_INDEX, return_tensors=None
 ):
     """
     <image> special token needs to get inserted separately.
@@ -196,13 +196,13 @@ def tokenizer_image_token(
 
     input_ids_batch = []
 
+    def insert_separator(X, sep):
+        return [ele for sublist in zip(X, [sep] * len(X)) for ele in sublist][:-1]
+
     for prompt in prompts:
         prompt_chunks = [
             tokenizer(chunk).input_ids for chunk in prompt.split("<image>")
         ]
-
-        def insert_separator(X, sep):
-            return [ele for sublist in zip(X, [sep] * len(X)) for ele in sublist][:-1]
 
         input_ids = []
         offset = 0
@@ -215,7 +215,7 @@ def tokenizer_image_token(
             input_ids.append(prompt_chunks[0][0])
 
         for x in insert_separator(prompt_chunks, [image_token_index] * (offset + 1)):
-            input_ids.extend(x[offset:])
+            input_ids.extend(x[offset:])  # skip bos token
 
         if return_tensors is not None:
             if return_tensors == "pt":
@@ -223,6 +223,7 @@ def tokenizer_image_token(
             else:
                 raise ValueError(f"Unsupported tensor type: {return_tensors}")
         else:
+            print("Only tensor outputs are currently supported")
             raise NotImplementedError
 
         input_ids_batch.append(input_ids)
@@ -232,16 +233,26 @@ def tokenizer_image_token(
     attn_masks_batch_padded = []
     position_ids_batch_padded = []
 
+    assert padding_side in ["left", "right"]
+
     for input_ids in input_ids_batch:
         padding = torch.tensor([tokenizer.pad_token_id] * (max_len - len(input_ids)))
-        input_ids_batch_padded.append(torch.cat([padding, input_ids]))
 
-        attention_mask = torch.cat([torch.zeros_like(padding), torch.ones_like(input_ids)])
-        attn_masks_batch_padded.append(attention_mask)
+        if padding_side == "left":
+            input_ids_batch_padded.append(torch.cat([padding, input_ids]))
 
-        position_ids = attention_mask.long().cumsum(-1) - 1
-        position_ids.masked_fill_(attention_mask == 0, 1)
-        position_ids_batch_padded.append(position_ids)
+            attention_mask = torch.cat([torch.zeros_like(padding), torch.ones_like(input_ids)])
+            attn_masks_batch_padded.append(attention_mask)
+
+        elif padding_side == "right":
+            input_ids_batch_padded.append(torch.cat([input_ids, padding]))
+
+            attention_mask = torch.cat([torch.ones_like(input_ids), torch.zeros_like(padding)])
+            attn_masks_batch_padded.append(attention_mask)
+
+        # position_ids = attention_mask.long().cumsum(-1) - 1
+        # position_ids.masked_fill_(attention_mask == 0, 1)
+        # position_ids_batch_padded.append(position_ids)
 
 
     return {

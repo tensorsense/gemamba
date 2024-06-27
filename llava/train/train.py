@@ -676,7 +676,7 @@ def preprocess_gemma(
 
     # Tokenize conversations
     if has_image:  # TODO check that this works
-        input_ids = torch.stack([tokenizer_image_token(prompt, tokenizer, return_tensors='pt') for prompt in conversations], dim=0)
+        input_ids = tokenizer_image_token(conversations, tokenizer, return_tensors='pt')["input_ids"]
     else:
         input_ids = tokenizer(
             conversations,
@@ -709,8 +709,8 @@ def preprocess_gemma(
             parts[0] += sep
 
             if has_image:
-                round_len = len(tokenizer_image_token(round, tokenizer))
-                instruction_len = len(tokenizer_image_token(parts[0], tokenizer)) #- 2
+                round_len = len(tokenizer_image_token(round, tokenizer, return_tensors="pt")["input_ids"][0])
+                instruction_len = len(tokenizer_image_token(parts[0], tokenizer, return_tensors="pt")["input_ids"][0]) #- 2
             else:
                 round_len = len(tokenizer(round).input_ids)
                 instruction_len = len(tokenizer(parts[0]).input_ids) #- 2

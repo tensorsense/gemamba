@@ -111,7 +111,7 @@ def _prepare_text_batch(texts):
 
     # # tokenize the prompt
     inputs = tokenizer_image_token(
-        prompts, tokenizer, IMAGE_TOKEN_INDEX, return_tensors="pt"
+        prompts, tokenizer, padding_side="left", image_token_index=IMAGE_TOKEN_INDEX, return_tensors="pt"
     )
 
     for k, v in inputs.items():

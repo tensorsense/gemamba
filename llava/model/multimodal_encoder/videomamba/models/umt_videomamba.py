@@ -38,17 +38,17 @@ class UMT_VIDEOMAMBA(nn.Module):
         self.temp = nn.parameter.Parameter(torch.ones([]) * config.model.temp)
         self.itm_head = nn.Linear(self.text_width, 2)
 
-        if hasattr(config, "criterion"):
-            # criterions
-            self.loss_weight = config.criterion.loss_weight
-            self.criterion_uta = UTA_Loss(
-                config.criterion.uta_norm_type,
-                config.criterion.uta_loss_type, 
-            )
-            self.criterion_vtc_vtm = VTC_VTM_Loss(config.criterion.vtm_hard_neg)
-            self.criterion_mlm = MLMLoss(config.criterion.mlm_masking_prob, tokenizer)
-            self.uta_image_only = config.criterion.get('uta_image_only', False)
-            logger.info(f"UTA only for image: {self.uta_image_only}")
+        # if hasattr(config, "criterion"):
+        #     # criterions
+        #     self.loss_weight = config.criterion.loss_weight
+        #     self.criterion_uta = UTA_Loss(
+        #         config.criterion.uta_norm_type,
+        #         config.criterion.uta_loss_type, 
+        #     )
+        #     self.criterion_vtc_vtm = VTC_VTM_Loss(config.criterion.vtm_hard_neg)
+        #     self.criterion_mlm = MLMLoss(config.criterion.mlm_masking_prob, tokenizer)
+        #     self.uta_image_only = config.criterion.get('uta_image_only', False)
+        #     logger.info(f"UTA only for image: {self.uta_image_only}")
 
     def forward(self, image, text, idx):
         """forward and calculate loss.

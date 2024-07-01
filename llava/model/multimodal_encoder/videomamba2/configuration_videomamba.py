@@ -13,27 +13,27 @@ class VideoMambaTextConfig(BertConfig):
 
     model_type = "videomamba_text_model"
 
-    def __init__(
-        self,
-        pad_token_id=1,
-        bos_token_id=49406,
-        eos_token_id=49407,
-        **kwargs,
-    ):
+    # def __init__(
+    #     self,
+    #     # pad_token_id=1,
+    #     # bos_token_id=49406,
+    #     # eos_token_id=49407,
+    #     **kwargs,
+    # ):
 
-        super().__init__(
-            pad_token_id=pad_token_id,
-            bos_token_id=bos_token_id,
-            eos_token_id=eos_token_id,
-            **kwargs,
-        )
-        self.name = "bert_base"
-        self.pretrained = "bert-base-uncased"
-        self.config = (
-            "llava/model/multimodal_encoder/videomamba/configs/config_bert.json"
-        )
-        self.d_model = 768
-        self.fusion_layer = 9
+    #     super().__init__(
+    #         # pad_token_id=pad_token_id,
+    #         # bos_token_id=bos_token_id,
+    #         # eos_token_id=eos_token_id,
+    #         **kwargs,
+    #     )
+        # self.name = "bert_base"
+        # self.pretrained = "bert-base-uncased"
+        # self.config = (
+        #     "llava/model/multimodal_encoder/videomamba/configs/config_bert.json"
+        # )
+        # self.d_model = 768
+        # self.fusion_layer = 9
 
         # bert_config = BertConfig.from_json_file(model_config.text_encoder.config)
         # bert_config.encoder_width = (
@@ -48,52 +48,52 @@ class VideoMambaTextConfig(BertConfig):
 
         # config bert
 
-        {
-            "architectures": ["BertForMaskedLM"],
-            "attention_probs_dropout_prob": 0.1,
-            "hidden_act": "gelu",
-            "hidden_dropout_prob": 0.1,
-            "hidden_size": 768,
-            "initializer_range": 0.02,
-            "intermediate_size": 3072,
-            "layer_norm_eps": 1e-12,
-            "max_position_embeddings": 512,
-            "model_type": "bert",
-            "num_attention_heads": 12,
-            "num_hidden_layers": 12,
-            "pad_token_id": 0,
-            "type_vocab_size": 2,
-            "vocab_size": 30522,
-            "fusion_layer": 9,
-            "encoder_width": 768,
-            "cross_module": "ca",
-        }
+        # {
+        #     "architectures": ["BertForMaskedLM"],
+        #     "attention_probs_dropout_prob": 0.1,
+        #     "hidden_act": "gelu",
+        #     "hidden_dropout_prob": 0.1,
+        #     "hidden_size": 768,
+        #     "initializer_range": 0.02,
+        #     "intermediate_size": 3072,
+        #     "layer_norm_eps": 1e-12,
+        #     "max_position_embeddings": 512,
+        #     "model_type": "bert",
+        #     "num_attention_heads": 12,
+        #     "num_hidden_layers": 12,
+        #     "pad_token_id": 0,
+        #     "type_vocab_size": 2,
+        #     "vocab_size": 30522,
+        #     "fusion_layer": 9,
+        #     "encoder_width": 768,
+        #     "cross_module": "ca",
+        # }
 
-    @classmethod
-    def from_pretrained(
-        cls, pretrained_model_name_or_path: Union[str, os.PathLike], **kwargs
-    ) -> "PretrainedConfig":
-        cls._set_token_in_kwargs(kwargs)
+    # @classmethod
+    # def from_pretrained(
+    #     cls, pretrained_model_name_or_path: Union[str, os.PathLike], **kwargs
+    # ) -> "PretrainedConfig":
+    #     cls._set_token_in_kwargs(kwargs)
 
-        config_dict, kwargs = cls.get_config_dict(
-            pretrained_model_name_or_path, **kwargs
-        )
+    #     config_dict, kwargs = cls.get_config_dict(
+    #         pretrained_model_name_or_path, **kwargs
+    #     )
 
-        # get the text config dict if we are loading from CLIPConfig
-        if config_dict.get("model_type") == "clip":
-            config_dict = config_dict["text_config"]
+    #     # get the text config dict if we are loading from CLIPConfig
+    #     if config_dict.get("model_type") == "clip":
+    #         config_dict = config_dict["text_config"]
 
-        if (
-            "model_type" in config_dict
-            and hasattr(cls, "model_type")
-            and config_dict["model_type"] != cls.model_type
-        ):
-            logger.warning(
-                f"You are using a model of type {config_dict['model_type']} to instantiate a model of type "
-                f"{cls.model_type}. This is not supported for all configurations of models and can yield errors."
-            )
+    #     if (
+    #         "model_type" in config_dict
+    #         and hasattr(cls, "model_type")
+    #         and config_dict["model_type"] != cls.model_type
+    #     ):
+    #         logger.warning(
+    #             f"You are using a model of type {config_dict['model_type']} to instantiate a model of type "
+    #             f"{cls.model_type}. This is not supported for all configurations of models and can yield errors."
+    #         )
 
-        return cls.from_dict(config_dict, **kwargs)
+    #     return cls.from_dict(config_dict, **kwargs)
 
 
 class VideoMambaVisionConfig(PretrainedConfig):

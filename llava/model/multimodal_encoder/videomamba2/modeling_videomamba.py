@@ -63,7 +63,7 @@ logger = logging.get_logger(__name__)
 
 @dataclass
 class VideoMambaVisionModelOutput(ModelOutput):
-    image_embeds: Optional[torch.FloatTensor] = None
+    vision_embeds: Optional[torch.FloatTensor] = None
     last_hidden_state: torch.FloatTensor = None
     hidden_states: Optional[Tuple[torch.FloatTensor, ...]] = None
     attentions: Optional[Tuple[torch.FloatTensor, ...]] = None
@@ -83,7 +83,7 @@ class VideoMambaOutput(ModelOutput):
     logits_per_image: torch.FloatTensor = None
     logits_per_text: torch.FloatTensor = None
     text_embeds: torch.FloatTensor = None
-    image_embeds: torch.FloatTensor = None
+    vision_embeds: torch.FloatTensor = None
     text_model_output: BaseModelOutputWithPooling = None
     vision_model_output: BaseModelOutputWithPooling = None
 
@@ -1054,31 +1054,11 @@ class VideoMambaVisionModel(VideoMambaPreTrainedModel):
 
     def __init__(self, config: VideoMambaVisionConfig):
         super().__init__(config)
+        self.config = config
         self.vision_model = VideoMambaVideoEncoder(config)
 
-        # self.vision_model = VideoMambaVideoEncoder(
-        #     img_size=config.vision_encoder.img_size,
-        #     patch_size=config.vision_encoder.patch_size,
-        #     depth=config.vision_encoder.depth,
-        #     embed_dim=config.vision_encoder.embed_dim,
-        #     drop_path_rate=config.vision_encoder.drop_path_rate,
-        #     ssm_cfg=config.vision_encoder.ssm_cfg,
-        #     norm_epsilon=config.vision_encoder.norm_epsilon,
-        #     fused_add_norm=config.vision_encoder.fused_add_norm,
-        #     rms_norm=config.vision_encoder.rms_norm,
-        #     residual_in_fp32=config.vision_encoder.residual_in_fp32,
-        #     bimamba=config.vision_encoder.bimamba,
-        #     pool_type=config.vision_encoder.pool_type,
-        #     kernel_size=config.vision_encoder.kernel_size,
-        #     num_frames=config.vision_encoder.num_frames,
-        #     use_checkpoint=config.vision_encoder.use_checkpoint,
-        #     checkpoint_num=config.vision_encoder.checkpoint_num,
-        #     clip_decoder_embed_dim=config.vision_encoder.clip_decoder_embed_dim,
-        #     clip_output_dim=config.vision_encoder.clip_output_dim,
-        #     clip_return_layer=config.vision_encoder.clip_return_layer,
-        #     clip_student_return_interval=config.vision_encoder.clip_student_return_interval,
-        #     add_pool_norm=True,  # TO GET POOLED FEATURES
-        # )
+        # add_pool_norm=True,  # TO GET POOLED FEATURES
+
         # Initialize weights and apply final processing
         self.post_init()
 
@@ -1098,35 +1078,21 @@ class VideoMambaVisionModel(VideoMambaPreTrainedModel):
         #             - student_output (torch.Tensor): The features of alignment. Shape: [K,B,N,C].
         #             - clip_output (torch.Tensor): The features of clip. Shape: [K,B,N,C].
 
-        # T = image.shape[1]
-        # use_image = True if T == 1 else False
-        # image = image.permute(0, 2, 1, 3, 4) # [B,T,C,H,W] -> [B,C,T,H,W]
-        # # whether save temporal dimension
-        # keep_temporal=self.config.model.vision_encoder.keep_temporal
-        # vision_embeds, pooled_vision_embeds, _ = self.vision_encoder(
-        #     image, None, use_image, keep_temporal,
-        # )
-
-        # return vision_embeds, pooled_vision_embeds
-
-        T = image.shape[2]
-        # use_image = True if T == 1 else False
-        use_image = False
-
-        # print(image.shape)
-
-        # image = image.permute(0, 2, 1, 3, 4)  # [B,T,C,H,W] -> [B,C,T,H,W]
-        # whether save temporal dimension
-        keep_temporal = self.config.model.vision_encoder.keep_temporal
-
-        vision_features = self.vision_tower(
-            image,
-            None,
-            use_image,
-            keep_temporal,
+        vision_embeds = self.vision_model(
+            x=pixel_values,
+            mask=None,
+            use_image=False,
+            keep_temporal=self.config.keep_temporal,
         )
 
-        return vision_features
+        output = VideoMambaVisionModelOutput(
+            vision_embeds=vision_embeds,
+            last_hidden_state=None,
+            hidden_states=None,
+            attentions=None,
+        )
+
+        return output
 
 
 class VideoMambaModel(VideoMambaPreTrainedModel):

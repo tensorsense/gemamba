@@ -1,78 +1,15 @@
 import os
 from typing import Union
 from transformers import PretrainedConfig
-
-num_frames = 8
-img_size = 224
-batch_size = 64
-max_txt_l = 32
-
-# model_pth = "videomamba_m16_5M_f8_res224.pth"
-model_pth = "videomamba_m16_25M_f8_res224.pth"
-
-config_dict = {
-    # preprocessor settings
-    "num_frames": num_frames,
-    "num_frames_test": num_frames,
-    "batch_size": batch_size,
-    "max_txt_l": max_txt_l,
-    "inputs": {
-        "image_res": img_size,
-        "video_input": {
-            "num_frames": num_frames,
-            "sample_type": "rand",
-            "num_frames_test": num_frames,
-            "sample_type_test": "middle",
-            "random_aug": False,
-        },
-        "max_txt_l": {"image": max_txt_l, "video": max_txt_l},
-        "batch_size": {"image": batch_size, "video": batch_size},
-        "batch_size_test": {"image": batch_size, "video": batch_size},
-    },
-    # model settings
-    "text_enc": "bert",
-    "model": {
-        "model_cls": UMT_VIDEOMAMBA,
-        "multimodal": {"enable": True},
-    },
-    # train test settings
-    "evaluate": False,
-    "deep_fusion": False,
-    "evaluation": {
-        "eval_frame_ensemble": "concat",
-        "eval_x_only": False,
-        "k_test": 128,
-        "eval_offload": False,
-    },
-    # technicalities
-    "fp16": True,
-    "bf16": True,
-    "gradient_checkpointing": True,
-    "device": "cuda",
-    "mode": "pt",
-    "output_dir": None,
-    "resume": False,
-    "debug": False,
-    "log_freq": 1,
-    "seed": 42,
-    "zero_shot": True,
-    "save_latest": False,
-    "auto_resume": False,
-    # "pretrained_path": model_pth,
-    "distributed": False,
-}
+from transformers import BertConfig
+from transformers import logging
+import torch
 
 
-class VideoMambaTextConfig(PretrainedConfig):
-    """
-    "text_encoder": {
-        "name": "bert_base",
-        "pretrained": "bert-base-uncased",
-        "config": "llava/model/multimodal_encoder/videomamba/configs/config_bert.json",
-        "d_model": 768,
-        "fusion_layer": 9,
-    },
-    """
+logger = logging.get_logger(__name__)
+
+
+class VideoMambaTextConfig(BertConfig):
 
     model_type = "videomamba_text_model"
 
@@ -90,6 +27,47 @@ class VideoMambaTextConfig(PretrainedConfig):
             eos_token_id=eos_token_id,
             **kwargs,
         )
+        self.name = "bert_base"
+        self.pretrained = "bert-base-uncased"
+        self.config = (
+            "llava/model/multimodal_encoder/videomamba/configs/config_bert.json"
+        )
+        self.d_model = 768
+        self.fusion_layer = 9
+
+        # bert_config = BertConfig.from_json_file(model_config.text_encoder.config)
+        # bert_config.encoder_width = (
+        #     model_config.vision_encoder.get.d_model
+        #     if model_config.vision_encoder.get("d_model", 0)
+        #     else model_config.vision_encoder.embed_dim
+        # )
+        # bert_config.gradient_checkpointing = checkpoint
+        # bert_config.fusion_layer = model_config.text_encoder.fusion_layer
+
+
+
+        # config bert
+
+        {
+            "architectures": ["BertForMaskedLM"],
+            "attention_probs_dropout_prob": 0.1,
+            "hidden_act": "gelu",
+            "hidden_dropout_prob": 0.1,
+            "hidden_size": 768,
+            "initializer_range": 0.02,
+            "intermediate_size": 3072,
+            "layer_norm_eps": 1e-12,
+            "max_position_embeddings": 512,
+            "model_type": "bert",
+            "num_attention_heads": 12,
+            "num_hidden_layers": 12,
+            "pad_token_id": 0,
+            "type_vocab_size": 2,
+            "vocab_size": 30522,
+            "fusion_layer": 9,
+            "encoder_width": 768,
+            "cross_module": "ca",
+        }
 
     @classmethod
     def from_pretrained(
@@ -119,44 +97,6 @@ class VideoMambaTextConfig(PretrainedConfig):
 
 
 class VideoMambaVisionConfig(PretrainedConfig):
-    """
-    "vision_encoder": {
-        "name": "videomamba_middle",
-        "img_size": img_size,
-        "patch_size": 16,
-        "depth": 32,
-        "embed_dim": 576,
-        "drop_path_rate": 0.25,
-        "ssm_cfg": None,
-        "norm_epsilon": 1e-5,
-        "fused_add_norm": True,
-        "rms_norm": True,
-        "residual_in_fp32": True,
-        "bimamba": True,
-        "pool_type": "cls+avg",
-        "kernel_size": 1,
-        "num_frames": num_frames,
-        "ckpt_num_frame": 8,
-        "use_checkpoint": False,
-        "checkpoint_num": 0,
-        "clip_decoder_embed_dim": 576,
-        "clip_output_dim": 512,
-        "clip_norm_type": "l2",
-        "clip_return_layer": 1,
-        "clip_student_return_interval": 1,
-        "pretrained": model_pth,
-        "clip_teacher": "none",
-        "clip_img_size": img_size,
-        "clip_return_interval": 1,
-        "video_mask_type": "none",
-        "video_mask_ratio": 0.0,
-        "video_double_mask_ratio": 0.0,
-        "image_mask_type": "none",
-        "image_mask_ratio": 0.0,
-        "image_double_mask_ratio": 0.0,
-        "keep_temporal": True,
-    },
-    """
 
     model_type = "videomamba_vision_model"
 
@@ -165,6 +105,47 @@ class VideoMambaVisionConfig(PretrainedConfig):
         **kwargs,
     ):
         super().__init__(**kwargs)
+
+        self.device = torch.device("cpu")
+        self.dtype = torch.float
+        self.channels=3
+        self.initializer_cfg = None
+        self.add_pool_norm = True
+
+        self.name = "videomamba_middle"
+        self.img_size = 224
+        self.patch_size = 16
+        self.depth = 32
+        self.embed_dim = 576
+        self.drop_path_rate = 0.25
+        self.ssm_cfg = None
+        self.norm_epsilon = 1e-5
+        self.fused_add_norm = True
+        self.rms_norm = True
+        self.residual_in_fp32 = True
+        self.bimamba = True
+        self.pool_type = "cls+avg"
+        self.kernel_size = 1
+        self.num_frames = 8
+        self.ckpt_num_frame = 8
+        self.use_checkpoint = False
+        self.checkpoint_num = 0
+        self.clip_decoder_embed_dim = 576
+        self.clip_output_dim = 512
+        self.clip_norm_type = "l2"
+        self.clip_return_layer = 1
+        self.clip_student_return_interval = 1
+        # self.pretrained = model_pth
+        self.clip_teacher = "none"
+        self.clip_img_size = 224
+        self.clip_return_interval = 1
+        self.video_mask_type = "none"
+        self.video_mask_ratio = 0.0
+        self.video_double_mask_ratio = 0.0
+        self.image_mask_type = "none"
+        self.image_mask_ratio = 0.0
+        self.image_double_mask_ratio = 0.0
+        self.keep_temporal = True
 
     @classmethod
     def from_pretrained(
@@ -194,10 +175,6 @@ class VideoMambaVisionConfig(PretrainedConfig):
 
 
 class VideoMambaConfig(PretrainedConfig):
-    """
-    "embed_dim": 512,
-    "temp": 0.07,
-    """
 
     model_type = "videomamba"
 
@@ -205,8 +182,8 @@ class VideoMambaConfig(PretrainedConfig):
         self,
         text_config=None,
         vision_config=None,
-        projection_dim=512,
-        logit_scale_init_value=2.6592,
+        # projection_dim=512,
+        # logit_scale_init_value=2.6592,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -214,6 +191,9 @@ class VideoMambaConfig(PretrainedConfig):
         self.text_config = VideoMambaTextConfig(**text_config)
         self.vision_config = VideoMambaVisionConfig(**vision_config)
 
-        self.projection_dim = projection_dim
-        self.logit_scale_init_value = logit_scale_init_value
-        self.initializer_factor = 1.0
+        self.embed_dim = 512
+        self.temp = 0.07
+
+        # self.projection_dim = projection_dim
+        # self.logit_scale_init_value = logit_scale_init_value
+        # self.initializer_factor = 1.0

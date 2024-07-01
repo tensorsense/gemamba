@@ -7,6 +7,27 @@ import numpy as np
 import random
 
 
+# # preprocessor settings
+#     "num_frames": num_frames,
+#     "num_frames_test": num_frames,
+#     "batch_size": batch_size,
+#     "max_txt_l": max_txt_l,
+#     "inputs": {
+#         "image_res": img_size,
+#         "video_input": {
+#             "num_frames": num_frames,
+#             "sample_type": "rand",
+#             "num_frames_test": num_frames,
+#             "sample_type_test": "middle",
+#             "random_aug": False,
+#         },
+#         "max_txt_l": {"image": max_txt_l, "video": max_txt_l},
+#         "batch_size": {"image": batch_size, "video": batch_size},
+#         "batch_size_test": {"image": batch_size, "video": batch_size},
+#     },
+
+
+
 OPENAI_CLIP_MEAN = (0.48145466, 0.4578275, 0.40821073)
 OPENAI_CLIP_STD = (0.26862954, 0.26130258, 0.27577711)
 
@@ -21,7 +42,8 @@ def get_video_transform(config):
     transform = transforms.Compose(
         [
             transforms.Resize(
-                (config.inputs.image_res, config.inputs.image_res),
+                # (config.inputs.image_res, config.inputs.image_res),
+                (224, 224),
                 interpolation=transforms.InterpolationMode.BICUBIC,
             ),
             type_transform,
@@ -125,7 +147,7 @@ class VideoMambaVideoProcessor(ProcessorMixin):
     attributes = []
     tokenizer_class = "VideoMambaVideoProcessor"
 
-    def __init__(self, config, tokenizer=None, **kwargs):
+    def __init__(self, config=None, tokenizer=None, **kwargs):
         super().__init__(**kwargs)
         self.config = config
         self.transform = get_video_transform(config)
@@ -158,8 +180,10 @@ class VideoMambaVideoProcessor(ProcessorMixin):
             image_features = [
                 self.video_reader(
                     image,
-                    self.config.inputs.video_input.num_frames,
-                    self.config.inputs.video_input.sample_type,
+                    # self.config.inputs.video_input.num_frames,
+                    # self.config.inputs.video_input.sample_type,
+                    8,
+                    "middle",
                     max_num_frames=-1,
                     client=None,
                     trimmed30=False,

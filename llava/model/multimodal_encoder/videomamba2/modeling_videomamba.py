@@ -2,7 +2,8 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from torch import Tensor
-from transformers import ModelOutput, BaseModelOutputWithPooling, PreTrainedModel
+from transformers import PreTrainedModel
+from transformers.modeling_outputs import ModelOutput, BaseModelOutputWithPooling
 import numpy as np
 from typing import Optional, Tuple, Union
 from dataclasses import dataclass
@@ -48,9 +49,16 @@ try:
 except ImportError:
     RMSNorm, layer_norm_fn, rms_norm_fn = None, None, None
 
-import logging
+from transformers import logging
+from transformers import BertForMaskedLM, BertModel, BertConfig
 
-logger = logging.getLogger(__name__)
+from .configuration_videomamba import (
+    VideoMambaConfig,
+    VideoMambaTextConfig,
+    VideoMambaVisionConfig,
+)
+
+logger = logging.get_logger(__name__)
 
 
 @dataclass
@@ -691,127 +699,116 @@ def get_sinusoid_encoding_table(n_position, d_hid):
     ).unsqueeze(0)
 
 
-class PretrainVideoMamba(nn.Module):
+class VideoMambaVideoEncoder(nn.Module):
     def __init__(
         self,
-        img_size=224,
-        patch_size=16,
-        depth=24,
-        embed_dim=192,
-        channels=3,
-        drop_path_rate=0.0,
-        ssm_cfg=None,
-        norm_epsilon=1e-5,
-        initializer_cfg=None,
-        fused_add_norm=True,
-        rms_norm=True,
-        residual_in_fp32=True,
-        bimamba=True,
-        pool_type="cls+avg",
-        # video
-        kernel_size=1,
-        num_frames=8,
-        device=None,
-        dtype=None,
-        # checkpoint
-        use_checkpoint=False,
-        checkpoint_num=0,
-        # clip,
-        clip_decoder_embed_dim=768,
-        clip_output_dim=512,
-        clip_return_layer=1,
-        clip_student_return_interval=1,
-        add_pool_norm=True,
+        config: VideoMambaVisionConfig,
     ):
-        factory_kwargs = {"device": device, "dtype": dtype}  # follow MambaLMHeadModel
+
+        factory_kwargs = {
+            "device": config.device,
+            "dtype": config.dtype,
+        }  # follow MambaLMHeadModel
+
         super().__init__()
-        self.residual_in_fp32 = residual_in_fp32
-        self.fused_add_norm = fused_add_norm
-        self.use_checkpoint = use_checkpoint
-        self.checkpoint_num = checkpoint_num
-        logger.info(f"Use checkpoint: {use_checkpoint}")
-        logger.info(f"Checkpoint number: {checkpoint_num}")
+
+        self.residual_in_fp32 = config.residual_in_fp32
+        self.fused_add_norm = config.fused_add_norm
+        self.use_checkpoint = config.use_checkpoint
+        self.checkpoint_num = config.checkpoint_num
+
+        logger.info(f"Use checkpoint: {self.use_checkpoint}")
+        logger.info(f"Checkpoint number: {self.checkpoint_num}")
+
         self.return_index = []
-        for i in range(clip_return_layer):
-            self.return_index.append(depth - int(i * clip_student_return_interval) - 1)
+        for i in range(config.clip_return_layer):
+            self.return_index.append(
+                config.depth - int(i * config.clip_student_return_interval) - 1
+            )
+
         logger.info(f"Student return index: {self.return_index}")
-        self.depth = depth
-        self.pool_type = pool_type
-        logger.info(f"Pool type: {pool_type}")
+
+        self.depth = config.depth
+        self.pool_type = config.pool_type
+
+        logger.info(f"Pool type: {self.pool_type}")
 
         # pretrain parameters
         self.d_model = self.num_features = self.embed_dim = (
-            embed_dim  # num_features for consistency with other models
+            config.embed_dim  # num_features for consistency with other models
         )
 
         self.patch_embed = PatchEmbed(
-            img_size=img_size,
-            patch_size=patch_size,
-            kernel_size=kernel_size,
-            in_chans=channels,
-            embed_dim=embed_dim,
+            img_size=config.img_size,
+            patch_size=config.patch_size,
+            kernel_size=config.kernel_size,
+            in_chans=config.channels,
+            embed_dim=config.embed_dim,
         )
         num_patches = self.patch_embed.num_patches
 
         self.cls_token = nn.Parameter(torch.zeros(1, 1, self.embed_dim))
         self.pos_embed = nn.Parameter(torch.zeros(1, num_patches + 1, self.embed_dim))
         self.temporal_pos_embedding = nn.Parameter(
-            torch.zeros(1, num_frames // kernel_size, embed_dim)
+            torch.zeros(1, config.num_frames // config.kernel_size, config.embed_dim)
         )
 
         dpr = [
-            x.item() for x in torch.linspace(0, drop_path_rate, depth)
+            x.item() for x in torch.linspace(0, config.drop_path_rate, config.depth)
         ]  # stochastic depth decay rule
         inter_dpr = [0.0] + dpr
         self.drop_path = (
-            DropPath(drop_path_rate) if drop_path_rate > 0.0 else nn.Identity()
+            DropPath(config.drop_path_rate)
+            if config.drop_path_rate > 0.0
+            else nn.Identity()
         )
         # mamba blocks
         self.layers = nn.ModuleList(
             [
                 create_block(
-                    embed_dim,
-                    ssm_cfg=ssm_cfg,
-                    norm_epsilon=norm_epsilon,
-                    rms_norm=rms_norm,
-                    residual_in_fp32=residual_in_fp32,
-                    fused_add_norm=fused_add_norm,
+                    config.embed_dim,
+                    ssm_cfg=config.ssm_cfg,
+                    norm_epsilon=config.norm_epsilon,
+                    rms_norm=config.rms_norm,
+                    residual_in_fp32=config.residual_in_fp32,
+                    fused_add_norm=config.fused_add_norm,
                     layer_idx=i,
-                    bimamba=bimamba,
+                    bimamba=config.bimamba,
                     drop_path=inter_dpr[i],
                     **factory_kwargs,
                 )
-                for i in range(depth)
+                for i in range(config.depth)
             ]
         )
 
         # output head
-        self.norm = (nn.LayerNorm if not rms_norm else RMSNorm)(
-            embed_dim, eps=norm_epsilon, **factory_kwargs
+        self.norm = (nn.LayerNorm if not config.rms_norm else RMSNorm)(
+            config.embed_dim, eps=config.norm_epsilon, **factory_kwargs
         )
 
         # CLIP decoder
         self.clip_decoder = nn.ModuleList(
             [
                 Linear_Decoder(
-                    output_dim=clip_output_dim,
-                    embed_dim=clip_decoder_embed_dim,
+                    output_dim=config.clip_output_dim,
+                    embed_dim=config.clip_decoder_embed_dim,
                     norm_layer=nn.LayerNorm,
                 )
-                for _ in range(clip_return_layer)
+                for _ in range(config.clip_return_layer)
             ]
         )
 
         self.clip_pos_embed = get_sinusoid_encoding_table(
-            num_patches * num_frames // kernel_size + 1, clip_decoder_embed_dim
+            num_patches * config.num_frames // config.kernel_size + 1,
+            config.clip_decoder_embed_dim,
         )
         self.clip_img_pos_embed = get_sinusoid_encoding_table(
-            num_patches + 1, clip_decoder_embed_dim
+            num_patches + 1, config.clip_decoder_embed_dim
         )
 
-        self.add_pool_norm = add_pool_norm
-        if add_pool_norm:
-            self.pool_norm = nn.LayerNorm(embed_dim)
+        self.add_pool_norm = config.add_pool_norm
+        if self.add_pool_norm:
+            self.pool_norm = nn.LayerNorm(config.embed_dim)
 
         # original init
         self.apply(segm_init_weights)
@@ -821,8 +818,10 @@ class PretrainVideoMamba(nn.Module):
         self.apply(
             partial(
                 _init_weights,
-                n_layer=depth,
-                **(initializer_cfg if initializer_cfg is not None else {}),
+                n_layer=config.depth,
+                **(
+                    config.initializer_cfg if config.initializer_cfg is not None else {}
+                ),
             )
         )
 
@@ -1005,48 +1004,48 @@ class VideoMambaPreTrainedModel(PreTrainedModel):
     supports_gradient_checkpointing = True
 
 
-class VideoMambaTextModel(VideoMambaPreTrainedModel):
+class VideoMambaTextModel(VideoMambaPreTrainedModel, BertModel):
     config_class = VideoMambaTextConfig
 
-    def __init__(self, config: VideoMambaTextConfig):
-        super().__init__(config)
-        self.text_model = VideoMambaTextTransformer(config)
+    # def __init__(self, config: VideoMambaTextConfig):
+    #     super().__init__(config)
+    #     self.text_encoder = BertModel(config)
 
-        bert_config = BertConfig.from_json_file(model_config.text_encoder.config)
-        bert_config.encoder_width = (
-            model_config.vision_encoder.get.d_model
-            if model_config.vision_encoder.get("d_model", 0)
-            else model_config.vision_encoder.embed_dim
-        )
-        bert_config.gradient_checkpointing = checkpoint
-        bert_config.fusion_layer = model_config.text_encoder.fusion_layer
+    #     # text_encoder, loading_info = BertModel.from_pretrained(
+    #     #     model_config.text_encoder.pretrained,
+    #     #     config=config,
+    #     #     add_pooling_layer=False,
+    #     #     # output_loading_info=True,
+    #     #     # MODIFIED
+    #     #     # local_files_only=True
+    #     # )
+    #     # Initialize weights and apply final processing
+    #     self.post_init()
 
-        if not model_config.multimodal.enable:
-            bert_config.fusion_layer = bert_config.num_hidden_layers
+    # def forward(
+    #     self,
+    # ) -> Union[Tuple, BaseModelOutputWithPooling]:
+    #     pass
 
-        if pretrain:
-            text_encoder, loading_info = BertForMaskedLM.from_pretrained(
-                model_config.text_encoder.pretrained,
-                config=bert_config,
-                output_loading_info=True,
-                local_files_only=True,
-            )
-        else:
-            text_encoder, loading_info = BertModel.from_pretrained(
-                model_config.text_encoder.pretrained,
-                config=bert_config,
-                add_pooling_layer=False,
-                output_loading_info=True,
-                # MODIFIED
-                # local_files_only=True
-            )
-        # Initialize weights and apply final processing
-        self.post_init()
 
-    def forward(
-        self,
-    ) -> Union[Tuple, BaseModelOutputWithPooling]:
-        pass
+class VideoMambaTextModelForMaskedLM(VideoMambaPreTrainedModel, BertForMaskedLM):
+    config_class = VideoMambaTextConfig
+
+    # def __init__(self, config: VideoMambaTextConfig):
+    #     super().__init__(config)
+    #     # text_encoder, loading_info = BertForMaskedLM.from_pretrained(
+    #     #     model_config.text_encoder.pretrained,
+    #     #     config=config,
+    #     #     # output_loading_info=True,
+    #     #     local_files_only=True,
+    #     # )
+    #     # Initialize weights and apply final processing
+    #     self.post_init()
+
+    # def forward(
+    #     self,
+    # ) -> Union[Tuple, BaseModelOutputWithPooling]:
+    #     pass
 
 
 class VideoMambaVisionModel(VideoMambaPreTrainedModel):
@@ -1055,31 +1054,31 @@ class VideoMambaVisionModel(VideoMambaPreTrainedModel):
 
     def __init__(self, config: VideoMambaVisionConfig):
         super().__init__(config)
-        self.vision_model = VideoMambaVisionTransformer(config)
+        self.vision_model = VideoMambaVideoEncoder(config)
 
-        self.vision_model = PretrainVideoMamba(
-            img_size=config.vision_encoder.img_size,
-            patch_size=config.vision_encoder.patch_size,
-            depth=config.vision_encoder.depth,
-            embed_dim=config.vision_encoder.embed_dim,
-            drop_path_rate=config.vision_encoder.drop_path_rate,
-            ssm_cfg=config.vision_encoder.ssm_cfg,
-            norm_epsilon=config.vision_encoder.norm_epsilon,
-            fused_add_norm=config.vision_encoder.fused_add_norm,
-            rms_norm=config.vision_encoder.rms_norm,
-            residual_in_fp32=config.vision_encoder.residual_in_fp32,
-            bimamba=config.vision_encoder.bimamba,
-            pool_type=config.vision_encoder.pool_type,
-            kernel_size=config.vision_encoder.kernel_size,
-            num_frames=config.vision_encoder.num_frames,
-            use_checkpoint=config.vision_encoder.use_checkpoint,
-            checkpoint_num=config.vision_encoder.checkpoint_num,
-            clip_decoder_embed_dim=config.vision_encoder.clip_decoder_embed_dim,
-            clip_output_dim=config.vision_encoder.clip_output_dim,
-            clip_return_layer=config.vision_encoder.clip_return_layer,
-            clip_student_return_interval=config.vision_encoder.clip_student_return_interval,
-            add_pool_norm=True,  # TO GET POOLED FEATURES
-        )
+        # self.vision_model = VideoMambaVideoEncoder(
+        #     img_size=config.vision_encoder.img_size,
+        #     patch_size=config.vision_encoder.patch_size,
+        #     depth=config.vision_encoder.depth,
+        #     embed_dim=config.vision_encoder.embed_dim,
+        #     drop_path_rate=config.vision_encoder.drop_path_rate,
+        #     ssm_cfg=config.vision_encoder.ssm_cfg,
+        #     norm_epsilon=config.vision_encoder.norm_epsilon,
+        #     fused_add_norm=config.vision_encoder.fused_add_norm,
+        #     rms_norm=config.vision_encoder.rms_norm,
+        #     residual_in_fp32=config.vision_encoder.residual_in_fp32,
+        #     bimamba=config.vision_encoder.bimamba,
+        #     pool_type=config.vision_encoder.pool_type,
+        #     kernel_size=config.vision_encoder.kernel_size,
+        #     num_frames=config.vision_encoder.num_frames,
+        #     use_checkpoint=config.vision_encoder.use_checkpoint,
+        #     checkpoint_num=config.vision_encoder.checkpoint_num,
+        #     clip_decoder_embed_dim=config.vision_encoder.clip_decoder_embed_dim,
+        #     clip_output_dim=config.vision_encoder.clip_output_dim,
+        #     clip_return_layer=config.vision_encoder.clip_return_layer,
+        #     clip_student_return_interval=config.vision_encoder.clip_student_return_interval,
+        #     add_pool_norm=True,  # TO GET POOLED FEATURES
+        # )
         # Initialize weights and apply final processing
         self.post_init()
 
@@ -1090,7 +1089,44 @@ class VideoMambaVisionModel(VideoMambaPreTrainedModel):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, BaseModelOutputWithPooling]:
-        pass
+        #             image (torch.Tensor): The input images.
+        #             test (bool): Whether testing.
+
+        #         Returns: tuple.
+        #             - vision_embeds (torch.Tensor): The output features. Shape: [B,N,C].
+        #             - pooled_vision_embeds (torch.Tensor): The pooled output features. Shape: [B,1,C].
+        #             - student_output (torch.Tensor): The features of alignment. Shape: [K,B,N,C].
+        #             - clip_output (torch.Tensor): The features of clip. Shape: [K,B,N,C].
+
+        # T = image.shape[1]
+        # use_image = True if T == 1 else False
+        # image = image.permute(0, 2, 1, 3, 4) # [B,T,C,H,W] -> [B,C,T,H,W]
+        # # whether save temporal dimension
+        # keep_temporal=self.config.model.vision_encoder.keep_temporal
+        # vision_embeds, pooled_vision_embeds, _ = self.vision_encoder(
+        #     image, None, use_image, keep_temporal,
+        # )
+
+        # return vision_embeds, pooled_vision_embeds
+
+        T = image.shape[2]
+        # use_image = True if T == 1 else False
+        use_image = False
+
+        # print(image.shape)
+
+        # image = image.permute(0, 2, 1, 3, 4)  # [B,T,C,H,W] -> [B,C,T,H,W]
+        # whether save temporal dimension
+        keep_temporal = self.config.model.vision_encoder.keep_temporal
+
+        vision_features = self.vision_tower(
+            image,
+            None,
+            use_image,
+            keep_temporal,
+        )
+
+        return vision_features
 
 
 class VideoMambaModel(VideoMambaPreTrainedModel):
@@ -1155,7 +1191,14 @@ class VideoMambaModel(VideoMambaPreTrainedModel):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, VideoMambaOutput]:
-        pass
+        vision_embeds, pooled_vision_embeds, student_output, clip_output = (
+            self.encode_vision(image)
+        )
+        text_embeds, pooled_text_embeds = self.encode_text(text)
+
+        # obtain vision and text representations.
+        vision_proj = self.vision_proj(pooled_vision_embeds)
+        text_proj = self.text_proj(pooled_text_embeds)
 
 
 # def forward(self, image, text, idx):

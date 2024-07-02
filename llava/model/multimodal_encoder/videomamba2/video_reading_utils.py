@@ -1,15 +1,16 @@
 import av
 import numpy as np
 
+
 def read_video_pyav(container, indices):
-    '''
+    """
     Decode the video with PyAV decoder.
     Args:
         container (`av.container.input.InputContainer`): PyAV container.
         indices (`List[int]`): List of frame indices to decode.
     Returns:
         result (np.ndarray): np array of decoded frames of shape (num_frames, height, width, 3).
-    '''
+    """
     frames = []
     container.seek(0)
     start_index = indices[0]
@@ -23,7 +24,7 @@ def read_video_pyav(container, indices):
 
 
 def sample_frame_indices(clip_len, frame_sample_rate, seg_len):
-    '''
+    """
     Sample a given number of frame indices from the video.
     Args:
         clip_len (`int`): Total number of frames to sample.
@@ -31,7 +32,7 @@ def sample_frame_indices(clip_len, frame_sample_rate, seg_len):
         seg_len (`int`): Maximum allowed index of sample's last frame.
     Returns:
         indices (`List[int]`): List of sampled frame indices
-    '''
+    """
     converted_len = int(clip_len * frame_sample_rate)
     end_idx = np.random.randint(converted_len, seg_len)
     start_idx = end_idx - converted_len
@@ -40,108 +41,18 @@ def sample_frame_indices(clip_len, frame_sample_rate, seg_len):
     return indices
 
 
-def get_video_transform(image_res):
-    normalize = transforms.Normalize(OPENAI_CLIP_MEAN, OPENAI_CLIP_STD)
+def read_videos(video_paths):
+    videos = []
 
-    # loaded images and videos are torch.Tensor of torch.uint8 format,
-    # ordered as (T, 1 or 3, H, W) where T=1 for image
-    type_transform = transforms.Lambda(lambda x: x.float().div(255.0))
+    for video_path in video_paths:
 
-    transform = transforms.Compose(
-        [
-            transforms.Resize(
-                (image_res, image_res),
-                interpolation=transforms.InterpolationMode.BICUBIC,
-            ),
-            type_transform,
-            normalize,
-        ]
-    )
-    return transform
+        container = av.open(video_path)
 
+        # sample 32 frames
+        indices = sample_frame_indices(
+            clip_len=8, frame_sample_rate=1, seg_len=container.streams.video[0].frames
+        )
+        video = read_video_pyav(container=container, indices=indices)
+        videos.append(video)
 
-# def get_frame_indices(
-#     num_frames, vlen, sample="rand", fix_start=None, input_fps=1, max_num_frames=-1
-# ):
-#     if sample in ["rand", "middle"]:  # uniform sampling
-#         acc_samples = min(num_frames, vlen)
-#         # split the video into `acc_samples` intervals, and sample from each interval.
-#         intervals = np.linspace(start=0, stop=vlen, num=acc_samples + 1).astype(int)
-#         ranges = []
-#         for idx, interv in enumerate(intervals[:-1]):
-#             ranges.append((interv, intervals[idx + 1] - 1))
-#         if sample == "rand":
-#             try:
-#                 frame_indices = [random.choice(range(x[0], x[1])) for x in ranges]
-#             except:
-#                 frame_indices = np.random.permutation(vlen)[:acc_samples]
-#                 frame_indices.sort()
-#                 frame_indices = list(frame_indices)
-#         elif fix_start is not None:
-#             frame_indices = [x[0] + fix_start for x in ranges]
-#         elif sample == "middle":
-#             frame_indices = [(x[0] + x[1]) // 2 for x in ranges]
-#         else:
-#             raise NotImplementedError
-
-#         if len(frame_indices) < num_frames:  # padded with last frame
-#             padded_frame_indices = [frame_indices[-1]] * num_frames
-#             padded_frame_indices[: len(frame_indices)] = frame_indices
-#             frame_indices = padded_frame_indices
-#     elif "fps" in sample:  # fps0.5, sequentially sample frames at 0.5 fps
-#         output_fps = float(sample[3:])
-#         duration = float(vlen) / input_fps
-#         delta = (
-#             1 / output_fps
-#         )  # gap between frames, this is also the clip length each frame represents
-#         frame_seconds = np.arange(0 + delta / 2, duration + delta / 2, delta)
-#         frame_indices = np.around(frame_seconds * input_fps).astype(int)
-#         frame_indices = [e for e in frame_indices if e < vlen]
-#         if max_num_frames > 0 and len(frame_indices) > max_num_frames:
-#             frame_indices = frame_indices[:max_num_frames]
-#             # frame_indices = np.linspace(0 + delta / 2, duration + delta / 2, endpoint=False, num=max_num_frames)
-#     else:
-#         raise ValueError
-#     return frame_indices
-
-
-# def read_frames_decord(
-#     video_path,
-#     num_frames,
-#     sample="rand",
-#     fix_start=None,
-#     max_num_frames=-1,
-#     client=None,
-#     trimmed30=False,
-#     transform=None,
-# ):
-#     decord.bridge.set_bridge("torch")
-
-#     video_reader = VideoReader(video_path, num_threads=1)
-#     vlen = len(video_reader)
-#     fps = video_reader.get_avg_fps()
-#     duration = vlen / float(fps)
-
-#     # only use top 30 seconds
-#     if trimmed30 and duration > 30:
-#         duration = 30
-#         vlen = int(30 * float(fps))
-
-#     frame_indices = get_frame_indices(
-#         num_frames,
-#         vlen,
-#         sample=sample,
-#         fix_start=fix_start,
-#         input_fps=fps,
-#         max_num_frames=max_num_frames,
-#     )
-#     frames = video_reader.get_batch(frame_indices)  # (T, H, W, C), torch.uint8
-#     frames = frames.permute(
-#         0, 3, 1, 2
-#     )  # (T, C, H, W), torch.uint8 for transforms to work
-
-#     if transform is not None:
-#         frames = transform(frames)
-
-#     frames = frames.permute(1, 0, 2, 3)  # (C, T, H, W), torch.uint8 for 3d conv to work
-#     return frames  # frame_indices, duration
+    return videos

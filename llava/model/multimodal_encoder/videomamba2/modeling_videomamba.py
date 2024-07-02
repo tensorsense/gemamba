@@ -62,7 +62,7 @@ logger = logging.get_logger(__name__)
 
 
 @dataclass
-class VideoMambaVisionModelOutput(ModelOutput):
+class VideoMambaVisionModelOutput(BaseModelOutputWithPooling):
     vision_embeds: Optional[torch.FloatTensor] = None
     last_hidden_state: torch.FloatTensor = None
     hidden_states: Optional[Tuple[torch.FloatTensor, ...]] = None
@@ -70,7 +70,7 @@ class VideoMambaVisionModelOutput(ModelOutput):
 
 
 @dataclass
-class VideoMambaTextModelOutput(ModelOutput):
+class VideoMambaTextModelOutput(BaseModelOutputWithPooling):
     text_embeds: Optional[torch.FloatTensor] = None
     last_hidden_state: torch.FloatTensor = None
     hidden_states: Optional[Tuple[torch.FloatTensor, ...]] = None
@@ -704,10 +704,9 @@ class VideoMambaVideoEncoder(nn.Module):
         self,
         config: VideoMambaVisionConfig,
     ):
-
         factory_kwargs = {
-            "device": config.device,
-            "dtype": config.dtype,
+            # "device": config.device,
+            # "dtype": config.torch_dtype,
         }  # follow MambaLMHeadModel
 
         super().__init__()
@@ -1057,8 +1056,6 @@ class VideoMambaVisionModel(VideoMambaPreTrainedModel):
         self.config = config
         self.vision_model = VideoMambaVideoEncoder(config)
 
-        # add_pool_norm=True,  # TO GET POOLED FEATURES
-
         # Initialize weights and apply final processing
         self.post_init()
 
@@ -1078,7 +1075,7 @@ class VideoMambaVisionModel(VideoMambaPreTrainedModel):
         #             - student_output (torch.Tensor): The features of alignment. Shape: [K,B,N,C].
         #             - clip_output (torch.Tensor): The features of clip. Shape: [K,B,N,C].
 
-        vision_embeds = self.vision_model(
+        vision_embeds, pooler_output, _ = self.vision_model(
             x=pixel_values,
             mask=None,
             use_image=False,
@@ -1087,6 +1084,7 @@ class VideoMambaVisionModel(VideoMambaPreTrainedModel):
 
         output = VideoMambaVisionModelOutput(
             vision_embeds=vision_embeds,
+            pooler_output=pooler_output,
             last_hidden_state=None,
             hidden_states=None,
             attentions=None,
@@ -1113,6 +1111,8 @@ class VideoMambaModel(VideoMambaPreTrainedModel):
                 f" {type(config.vision_config)}."
             )
 
+        self.config = config
+
         text_config = config.text_config
         vision_config = config.vision_config
 
@@ -1120,8 +1120,8 @@ class VideoMambaModel(VideoMambaPreTrainedModel):
         # self.text_embed_dim = text_config.hidden_size
         # self.vision_embed_dim = vision_config.hidden_size
 
-        # self.text_model = VideoMambaTextTransformer(text_config)
-        # self.vision_model = VideoMambaVisionTransformer(vision_config)
+        self.text_model = VideoMambaTextModel(text_config)
+        self.vision_model = VideoMambaVideoEncoder(vision_config)
 
         # self.visual_projection = nn.Linear(
         #     self.vision_embed_dim, self.projection_dim, bias=False
@@ -1133,15 +1133,11 @@ class VideoMambaModel(VideoMambaPreTrainedModel):
         #     torch.tensor(self.config.logit_scale_init_value)
         # )
 
-        # create modules.
-        self.vision_encoder = self.build_vision_encoder()
-        self.text_encoder = self.build_text_encoder()
+        self.text_proj = nn.Linear(text_config.encoder_width, config.embed_dim)
+        self.vision_proj = nn.Linear(vision_config.embed_dim, config.embed_dim)
 
-        self.vision_proj = nn.Linear(self.vision_width, self.embed_dim)
-        self.text_proj = nn.Linear(self.text_width, self.embed_dim)
-
-        self.temp = nn.parameter.Parameter(torch.ones([]) * config.model.temp)
-        self.itm_head = nn.Linear(self.text_width, 2)
+        # self.temp = nn.parameter.Parameter(torch.ones([]) * config.model.temp)
+        # self.itm_head = nn.Linear(self.text_width, 2)
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -1156,91 +1152,44 @@ class VideoMambaModel(VideoMambaPreTrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
+        **kwargs,
     ) -> Union[Tuple, VideoMambaOutput]:
-        vision_embeds, pooled_vision_embeds, student_output, clip_output = (
-            self.encode_vision(image)
+        # vision_embeds, pooled_vision_embeds, student_output, clip_output = (
+        #     self.encode_vision(image)
+        # )
+        # text_embeds, pooled_text_embeds = self.encode_text(text)
+
+        text_model_output = self.text_model(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            position_ids=position_ids,
         )
-        text_embeds, pooled_text_embeds = self.encode_text(text)
+
+        vision_embeds, vision_pooler_output, _ = self.vision_model(
+            x=pixel_values,
+            mask=None,
+            use_image=False,
+            # keep_temporal=self.config.vision_config.keep_temporal,
+            keep_temporal=False,
+        )
+
+        vision_model_output = VideoMambaVisionModelOutput(
+            vision_embeds=vision_embeds,
+            pooler_output=vision_pooler_output,
+            last_hidden_state=None,
+            hidden_states=None,
+            attentions=None,
+        )
 
         # obtain vision and text representations.
-        vision_proj = self.vision_proj(pooled_vision_embeds)
-        text_proj = self.text_proj(pooled_text_embeds)
+        text_proj = self.text_proj(text_model_output.pooler_output)
+        vision_proj = self.vision_proj(vision_model_output.pooler_output)
 
+        output = VideoMambaOutput(
+            text_embeds=text_proj,
+            vision_embeds=vision_proj,
+            text_model_output=text_model_output,
+            vision_model_output=vision_model_output,
+        )
 
-# def forward(self, image, text, idx):
-#         """forward and calculate loss.
-
-#         Args:
-#             image (torch.Tensor): The input images. Shape: [B,T,C,H,W].
-#             text (dict): TODO
-#             idx (torch.Tensor): TODO
-
-#         Returns: TODO
-
-#         """
-#         self.clip_contrastive_temperature()
-#         T = image.shape[1]
-#         use_image = True if T == 1 else False
-
-#         vision_embeds, pooled_vision_embeds, student_output, clip_output = self.encode_vision(image)
-#         text_embeds, pooled_text_embeds = self.encode_text(text)
-
-#         # obtain vision and text representations.
-#         vision_proj = self.vision_proj(pooled_vision_embeds)
-#         text_proj = self.text_proj(pooled_text_embeds)
-
-
-#  def encode_vision(self, image, test=False):
-#         """encode image / videos as features.
-
-#         Args:
-#             image (torch.Tensor): The input images.
-#             test (bool): Whether testing.
-
-#         Returns: tuple.
-#             - vision_embeds (torch.Tensor): The output features. Shape: [B,N,C].
-#             - pooled_vision_embeds (torch.Tensor): The pooled output features. Shape: [B,1,C].
-#             - student_output (torch.Tensor): The features of alignment. Shape: [K,B,N,C].
-#             - clip_output (torch.Tensor): The features of clip. Shape: [K,B,N,C].
-
-#         """
-#         T = image.shape[1]
-#         use_image = True if T == 1 else False
-#         image = image.permute(0, 2, 1, 3, 4) # [B,T,C,H,W] -> [B,C,T,H,W]
-#         # whether save temporal dimension
-#         keep_temporal=self.config.model.vision_encoder.keep_temporal
-#         if test:
-#             vision_embeds, pooled_vision_embeds, _ = self.vision_encoder(
-#                 image, None, use_image, keep_temporal,
-#             )
-#             return vision_embeds, pooled_vision_embeds
-#         else:
-#             mask, clip_output = self.encode_teacher(image)
-#             if mask is not None and (self.video_mask_type != 'tube' or self.image_mask_type != 'tube'):
-#                 keep_temporal = False
-#             vision_embeds, pooled_vision_embeds, student_output = self.vision_encoder(
-#                 image, mask, use_image, keep_temporal
-#             )
-#             return vision_embeds, pooled_vision_embeds, student_output, clip_output
-
-#     def encode_text(self, text):
-#         """encode text.
-#         Args:
-#             text (dict): The output of huggingface's `PreTrainedTokenizer`. contains keys:
-#                 - input_ids (torch.Tensor): Token ids to be fed to a model. Shape: [B,L].
-#                 - attention_mask (torch.Tensor): The mask indicate padded tokens. Shape: [B,L]. 0 is padded token.
-#                 - other keys refer to "https://huggingface.co/docs/transformers/v4.21.2/en/main_classes/tokenizer#transformers.PreTrainedTokenizer.__call__".
-#         Returns: tuple.
-#             - text_embeds (torch.Tensor): The features of all tokens. Shape: [B,L,C].
-#             - pooled_text_embeds (torch.Tensor): The pooled features. Shape: [B,C].
-
-#         """
-#         text_output = self.get_text_encoder()(
-#             text.input_ids,
-#             attention_mask=text.attention_mask,
-#             return_dict=True,
-#             mode="text",
-#         )
-#         text_embeds = text_output.last_hidden_state
-#         pooled_text_embeds = text_embeds[:, 0]
-#         return text_embeds, pooled_text_embeds
+        return output

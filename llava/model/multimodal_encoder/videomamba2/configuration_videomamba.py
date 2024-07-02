@@ -27,47 +27,45 @@ class VideoMambaTextConfig(BertConfig):
     #         # eos_token_id=eos_token_id,
     #         **kwargs,
     #     )
-        # self.name = "bert_base"
-        # self.pretrained = "bert-base-uncased"
-        # self.config = (
-        #     "llava/model/multimodal_encoder/videomamba/configs/config_bert.json"
-        # )
-        # self.d_model = 768
-        # self.fusion_layer = 9
+    # self.name = "bert_base"
+    # self.pretrained = "bert-base-uncased"
+    # self.config = (
+    #     "llava/model/multimodal_encoder/videomamba/configs/config_bert.json"
+    # )
+    # self.d_model = 768
+    # self.fusion_layer = 9
 
-        # bert_config = BertConfig.from_json_file(model_config.text_encoder.config)
-        # bert_config.encoder_width = (
-        #     model_config.vision_encoder.get.d_model
-        #     if model_config.vision_encoder.get("d_model", 0)
-        #     else model_config.vision_encoder.embed_dim
-        # )
-        # bert_config.gradient_checkpointing = checkpoint
-        # bert_config.fusion_layer = model_config.text_encoder.fusion_layer
+    # bert_config = BertConfig.from_json_file(model_config.text_encoder.config)
+    # bert_config.encoder_width = (
+    #     model_config.vision_encoder.get.d_model
+    #     if model_config.vision_encoder.get("d_model", 0)
+    #     else model_config.vision_encoder.embed_dim
+    # )
+    # bert_config.gradient_checkpointing = checkpoint
+    # bert_config.fusion_layer = model_config.text_encoder.fusion_layer
 
+    # config bert
 
-
-        # config bert
-
-        # {
-        #     "architectures": ["BertForMaskedLM"],
-        #     "attention_probs_dropout_prob": 0.1,
-        #     "hidden_act": "gelu",
-        #     "hidden_dropout_prob": 0.1,
-        #     "hidden_size": 768,
-        #     "initializer_range": 0.02,
-        #     "intermediate_size": 3072,
-        #     "layer_norm_eps": 1e-12,
-        #     "max_position_embeddings": 512,
-        #     "model_type": "bert",
-        #     "num_attention_heads": 12,
-        #     "num_hidden_layers": 12,
-        #     "pad_token_id": 0,
-        #     "type_vocab_size": 2,
-        #     "vocab_size": 30522,
-        #     "fusion_layer": 9,
-        #     "encoder_width": 768,
-        #     "cross_module": "ca",
-        # }
+    # {
+    #     "architectures": ["BertForMaskedLM"],
+    #     "attention_probs_dropout_prob": 0.1,
+    #     "hidden_act": "gelu",
+    #     "hidden_dropout_prob": 0.1,
+    #     "hidden_size": 768,
+    #     "initializer_range": 0.02,
+    #     "intermediate_size": 3072,
+    #     "layer_norm_eps": 1e-12,
+    #     "max_position_embeddings": 512,
+    #     "model_type": "bert",
+    #     "num_attention_heads": 12,
+    #     "num_hidden_layers": 12,
+    #     "pad_token_id": 0,
+    #     "type_vocab_size": 2,
+    #     "vocab_size": 30522,
+    #     "fusion_layer": 9,
+    #     "encoder_width": 768,
+    #     "cross_module": "ca",
+    # }
 
     # @classmethod
     # def from_pretrained(
@@ -106,9 +104,9 @@ class VideoMambaVisionConfig(PretrainedConfig):
     ):
         super().__init__(**kwargs)
 
-        self.device = torch.device("cpu")
-        self.dtype = torch.float
-        self.channels=3
+        # self.device = "cpu"
+        self.torch_dtype = "float16"
+        self.channels = 3
         self.initializer_cfg = None
         self.add_pool_norm = True
 
@@ -188,8 +186,23 @@ class VideoMambaConfig(PretrainedConfig):
     ):
         super().__init__(**kwargs)
 
+        if text_config is None:
+            text_config = {}
+            logger.info(
+                "`text_config` is `None`. Initializing the `VideoMambaTextConfig` with default values."
+            )
+
+        if vision_config is None:
+            vision_config = {}
+            logger.info(
+                "`vision_config` is `None`. initializing the `VideoMambaVisionConfig` with default values."
+            )
+
         self.text_config = VideoMambaTextConfig(**text_config)
         self.vision_config = VideoMambaVisionConfig(**vision_config)
+
+        # self.text_config = text_config
+        # self.vision_config = vision_config
 
         self.embed_dim = 512
         self.temp = 0.07

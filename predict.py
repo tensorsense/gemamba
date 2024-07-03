@@ -18,6 +18,7 @@ from llava.mm_utils import (
     tokenizer_image_token,
     get_model_name_from_path,
 )
+from llava.model.multimodal_encoder.videomamba2.video_reading_utils import read_videos
 
 # These imports are necessary to run the code and register models in the autoclass
 from llava.model import (
@@ -111,7 +112,11 @@ def _prepare_text_batch(texts):
 
     # # tokenize the prompt
     inputs = tokenizer_image_token(
-        prompts, tokenizer, padding_side="left", image_token_index=IMAGE_TOKEN_INDEX, return_tensors="pt"
+        prompts,
+        tokenizer,
+        padding_side="left",
+        image_token_index=IMAGE_TOKEN_INDEX,
+        return_tensors="pt",
     )
 
     for k, v in inputs.items():
@@ -121,10 +126,21 @@ def _prepare_text_batch(texts):
 
 
 def _prepare_video_batch(video_paths):
-    video_tensor = image_processor(video_paths, return_tensors="pt")["pixel_values"].to(
-        DEFAULT_DEVICE, dtype=DEFAULT_DTYPE
-    )
-    return video_tensor
+    videos = read_videos(video_paths)
+
+    pixel_values = [
+        image_processor(
+            list(video),
+            return_tensors="pt",
+        )["pixel_values"]
+        for video in videos
+    ]
+    pixel_values = torch.vstack(pixel_values)
+    pixel_values = pixel_values.permute(
+        0, 2, 1, 3, 4
+    )  # (B, C, T, H, W), torch.uint8 for 3d conv to work
+    pixel_values = pixel_values.to(DEFAULT_DEVICE, dtype=DEFAULT_DTYPE)
+    return pixel_values
 
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 import os
-from .videomamba.vision_tower import VideoMambaVisionTower
+from .videomamba_vision_tower import VideoMambaVisionTower
 
 # ==== UPDATED FOR VISION TOWER ====
 
@@ -13,7 +13,7 @@ def build_vision_tower(video_tower_cfg, **kwargs):
     #     return LanguageBindVideoTower(
     #         video_tower, args=video_tower_cfg, cache_dir="./cache_dir", **kwargs
     #     )
-    if video_tower.endswith("videomamba"):
+    if video_tower.endswith("videomamba_base"):
         return VideoMambaVisionTower(
             video_tower, video_tower_cfg, cache_dir="./cache_dir", **kwargs
         )

@@ -167,7 +167,7 @@ class LlavaMetaForCausalLM(ABC):
         b, _, t, _, _ = videos.shape
         video_features = self.get_model().get_vision_tower()(
             videos
-        )  # [mini_b, t, n, c]
+        ).pooler_output  # [mini_b, t, n, c]
         video_features = self.get_model().mm_projector(video_features)
         return video_features
 

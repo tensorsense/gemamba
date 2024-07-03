@@ -20,8 +20,9 @@ from timm.models.vision_transformer import _load_weights
 
 try:
     from causal_conv1d import causal_conv1d_fn, causal_conv1d_update
+    print("import all good")
 except ImportError:
-    causal_conv1d_fn, causal_conv1d_update = None
+    causal_conv1d_fn, causal_conv1d_update = None, None
 
 try:
     from mamba_ssm.ops.selective_scan_interface import (
@@ -30,22 +31,25 @@ try:
         bimamba_inner_fn,
         mamba_inner_fn_no_out_proj,
     )
+    print("import all good here too")
 except ImportError:
     selective_scan_fn, mamba_inner_fn, bimamba_inner_fn, mamba_inner_fn_no_out_proj = (
         None,
         None,
         None,
         None,
-        None,
+        # None,
     )
 
 try:
     from mamba_ssm.ops.triton.selective_state_update import selective_state_update
 except ImportError:
+    print("import good")
     selective_state_update = None
 
 try:
     from mamba_ssm.ops.triton.layernorm import RMSNorm, layer_norm_fn, rms_norm_fn
+    print("import triton good")
 except ImportError:
     RMSNorm, layer_norm_fn, rms_norm_fn = None, None, None
 
@@ -1050,6 +1054,7 @@ class VideoMambaTextModelForMaskedLM(VideoMambaPreTrainedModel, BertForMaskedLM)
 class VideoMambaVisionModel(VideoMambaPreTrainedModel):
     config_class = VideoMambaVisionConfig
     main_input_name = "pixel_values"
+    _no_split_modules = ["Block"]
 
     def __init__(self, config: VideoMambaVisionConfig):
         super().__init__(config)

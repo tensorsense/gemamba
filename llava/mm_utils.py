@@ -233,7 +233,7 @@ def tokenizer_image_token(
     attn_masks_batch_padded = []
     position_ids_batch_padded = []
 
-    assert padding_side in ["left", "right"]
+    assert padding_side in ["left", "right"], f"Could not recognize padding mode {padding_side}"
 
     for input_ids in input_ids_batch:
         padding = torch.tensor([tokenizer.pad_token_id] * (max_len - len(input_ids)))

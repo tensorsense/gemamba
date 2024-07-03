@@ -6,3 +6,6 @@ from .language_model.llava_gemma import LlavaGemmaForCausalLM, LlavaGemmaConfig
 from .language_model.llava_phi3 import LlavaPhi3ForCausalLM, LlavaPhi3Config
 # except:
 #     pass
+
+# from .multimodal_encoder.videomamba2.modeling_videomamba import VideoMambaConfig
+# from .multimodal_encoder.videomamba2.modeling_videomamba import VideoMambaConfig
